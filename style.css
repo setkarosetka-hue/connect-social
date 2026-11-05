@@ -1,0 +1,243 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --bg: #090b11;
+    --surface: #11141c;
+    --surface-hover: #191e2a;
+    --border: #252b39;
+    --purple: #8b5cf6;
+    --text: #f4f5fb;
+    --muted: #9299ad;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, Arial, sans-serif;
+    min-height: 100vh;
+}
+
+/* HEADER */
+
+header {
+    height: 72px;
+    padding: 0 6%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(17, 20, 28, 0.96);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(15px);
+}
+
+.logo {
+    font-size: 29px;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.logo span {
+    color: var(--purple);
+}
+
+/* MAIN */
+
+main {
+    max-width: 720px;
+    margin: 35px auto;
+    padding: 0 20px;
+}
+
+/* WELCOME */
+
+.welcome {
+    padding: 35px;
+    border-radius: 22px;
+    margin-bottom: 25px;
+    background:
+        radial-gradient(circle at top right, #6d28d9 0%, transparent 50%),
+        linear-gradient(135deg, #211536, #11141c);
+    border: 1px solid #392754;
+    animation: fadeIn 0.6s ease;
+}
+
+.welcome h1 {
+    font-size: 27px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+}
+
+.welcome p {
+    color: #c4bddb;
+    line-height: 1.7;
+    font-size: 14px;
+}
+
+/* POSTS */
+
+.post {
+    padding: 24px;
+    margin-bottom: 20px;
+    border-radius: 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    transition: 0.25s;
+    animation: fadeIn 0.4s ease;
+}
+
+.post:hover {
+    border-color: #3d3458;
+    transform: translateY(-2px);
+}
+
+.post h3 {
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.post p {
+    color: #dfe3ee;
+    font-size: 14px;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+}
+
+/* CREATE POST */
+
+.create-post {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 13px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    margin-bottom: 22px;
+}
+
+textarea {
+    flex: 1;
+    min-width: 0;
+    min-height: 70px;
+    resize: vertical;
+    padding: 14px;
+    background: #1b202b;
+    border: 1px solid #2b3241;
+    border-radius: 12px;
+    color: white;
+    outline: none;
+    font-family: inherit;
+}
+
+textarea:focus {
+    border-color: var(--purple);
+}
+
+/* BUTTONS */
+
+button {
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    font-weight: 700;
+    transition: 0.2s;
+}
+
+#publishBtn {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: white;
+    padding: 13px 20px;
+    border-radius: 12px;
+}
+
+#publishBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px #8b5cf640;
+}
+
+.like-btn {
+    background: #1b202b;
+    color: #aab1c2;
+    padding: 10px 15px;
+    border-radius: 11px;
+    margin-top: 18px;
+    border: 1px solid var(--border);
+}
+
+.like-btn:hover {
+    background: #352034;
+    color: #fb7185;
+}
+
+/* FOOTER */
+
+footer {
+    text-align: center;
+    color: #737c8f;
+    padding: 30px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+}
+
+/* ANIMATION */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+    header {
+        height: 62px;
+        padding: 0 18px;
+    }
+
+    .logo {
+        font-size: 24px;
+    }
+
+    main {
+        margin: 20px auto;
+        padding: 0 12px;
+    }
+
+    .welcome {
+        padding: 24px;
+    }
+
+    .welcome h1 {
+        font-size: 22px;
+    }
+
+    .post {
+        padding: 18px;
+    }
+
+    .create-post {
+        padding: 15px;
+    }
+
+    #publishBtn {
+        width: 100%;
+    }
+}
