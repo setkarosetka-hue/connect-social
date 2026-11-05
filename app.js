@@ -135,21 +135,28 @@ function setMode(m) {
 async function enter(uid) {
   await loadAll(); S.me = uid; view = { name: 'home', uid: null }; render();
 }
+const toLogin = v => {
+  v = v.trim();
+  if (v.includes('@')) return v.toLowerCase();
+  let d = v.replace(/\D/g, '');
+  if (d.length === 11 && d[0] === '8') d = '7' + d.slice(1);
+  return d.length >= 10 && d.length <= 15 ? d + '@phone.connect.app' : null;
+};
 async function submit() {
-  const name = $('#fName').value.trim(), mail = $('#fMail').value.trim().toLowerCase(), pass = $('#fPass').value, err = $('#err'), btn = $('#authBtn');
+  const name = $('#fName').value.trim(), ident = toLogin($('#fMail').value), pass = $('#fPass').value, err = $('#err'), btn = $('#authBtn');
   err.textContent = '';
-  if (!/^\S+@\S+\.\S+$/.test(mail)) return err.textContent = 'Введите корректную почту, например name@mail.com';
+  if (!ident) return err.textContent = 'Введите номер телефона, например +7 900 123-45-67';
   if (pass.length < 6) return err.textContent = 'Пароль должен содержать минимум 6 символов';
   if (mode === 'register' && name.length < 2) return err.textContent = 'Укажите имя — минимум 2 символа';
   btn.disabled = true;
   try {
     if (mode === 'login') {
-      const { error } = await sb.auth.signInWithPassword({ email: mail, password: pass });
-      if (error) throw new Error('Неверная почта или пароль. Проверьте данные или зарегистрируйтесь.');
+      const { error } = await sb.auth.signInWithPassword({ email: ident, password: pass });
+      if (error) throw new Error('Неверный номер или пароль. Проверьте данные или зарегистрируйтесь.');
     } else {
-      const { data, error } = await sb.auth.signUp({ email: mail, password: pass, options: { data: { name, hue: Math.floor(Math.random() * 360) } } });
-      if (error) throw new Error(/registered/i.test(error.message) ? 'Эта почта уже занята. Попробуйте войти.' : error.message);
-      if (!data.session) { err.textContent = 'Аккаунт создан. Подтвердите почту по ссылке из письма и войдите.'; btn.disabled = false; return; }
+      const { data, error } = await sb.auth.signUp({ email: ident, password: pass, options: { data: { name, hue: Math.floor(Math.random() * 360) } } });
+      if (error) throw new Error(/registered/i.test(error.message) ? 'Этот номер уже зарегистрирован. Попробуйте войти.' : error.message);
+      if (!data.session) { err.textContent = 'Аккаунт создан, но в Supabase включено подтверждение почты. Выключите Confirm email в настройках и войдите.'; btn.disabled = false; return; }
     }
     const { data: { session } } = await sb.auth.getSession();
     await enter(session.user.id);
