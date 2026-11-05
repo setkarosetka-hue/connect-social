@@ -23,9 +23,8 @@
       <p>Connect — тихая социальная сеть без шума: только люди, которые вам интересны, и истории, которые стоит прочитать.</p>
       <div class="row">
         <button class="btn lg" data-act="auth" data-mode="register">Присоединиться</button>
-        <button class="btn ghost lg" data-act="demo">Посмотреть демо</button>
+        <button class="btn ghost lg" data-act="auth" data-mode="login">Войти</button>
       </div>
-      <small class="mu">Демо открывается без регистрации.</small>
     </div>
     <div class="hero-v" aria-hidden="true">
       <article class="card post f1"><header><span class="av" style="--h:265">А</span><div><b>Алиса Морозова</b><span>@alisa · 5 мин</span></div></header><p>Закончила редизайн приложения. Меньше элементов — больше воздуха.</p><footer><button class="act like on" data-fake>♥ 128</button><span class="act">💬 14</span></footer></article>
@@ -65,6 +64,7 @@
   </div>
 </div>
 <div id="toast" role="status"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
