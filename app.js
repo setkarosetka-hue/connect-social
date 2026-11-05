@@ -1,7 +1,5 @@
 'use strict';
-const SUPABASE_URL = 'https://ВАШ-ПРОЕКТ.supabase.co';
-const SUPABASE_KEY = 'ВАШ_ANON_PUBLIC_КЛЮЧ';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window.connectSupabase;
 
 const $ = (s, r = document) => r.querySelector(s);
 const P = {
