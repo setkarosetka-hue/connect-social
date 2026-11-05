@@ -1,54 +1,111 @@
-```html
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Connect — Социальная сеть</title>
-
-    <!-- Подключение стилей -->
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <header>
-        <div class="logo">connect<span>.</span></div>
-        <div class="profile-icon">👤</div>
-    </header>
+<header>
+    <div class="logo">connect<span>.</span></div>
+    <div id="headerUser">👤</div>
+</header>
 
-    <main>
+<main>
 
-        <section class="welcome">
-            <h1>Добро пожаловать в Connect 👋</h1>
-            <p>Общайся, делись моментами и находи друзей.</p>
-        </section>
+    <section class="welcome">
+        <h1>Добро пожаловать в Connect 👋</h1>
+        <p>Общайся, делись моментами и находи друзей.</p>
+    </section>
 
-        <section class="feed">
-            <article class="post">
-                <h3>Connect Team 🚀</h3>
-                <p>
-                    Привет! Это наша первая социальная сеть.
-                    Мы только начинаем разработку!
-                </p>
-            </article>
+    <section class="post" id="authBox">
 
-            <article class="post">
-                <h3>Gamer 🎮</h3>
-                <p>Как вам наш новый сайт?</p>
-            </article>
-        </section>
+        <h2>Твой аккаунт Connect</h2>
 
-    </main>
+        <form id="registerForm">
+            <h3>Регистрация</h3>
 
-    <footer>
-        © 2026 Connect
-    </footer>
+            <input
+                type="email"
+                id="registerEmail"
+                placeholder="Твой Email"
+                required
+            >
 
-    <!-- Подключение логики -->
-    <script src="app.js"></script>
+            <input
+                type="password"
+                id="registerPassword"
+                placeholder="Пароль (минимум 6 символов)"
+                minlength="6"
+                required
+            >
+
+            <button type="submit">Создать аккаунт</button>
+        </form>
+
+        <hr>
+
+        <form id="loginForm">
+            <h3>Вход</h3>
+
+            <input
+                type="email"
+                id="loginEmail"
+                placeholder="Твой Email"
+                required
+            >
+
+            <input
+                type="password"
+                id="loginPassword"
+                placeholder="Пароль"
+                required
+            >
+
+            <button type="submit">Войти</button>
+        </form>
+
+        <p id="authMessage"></p>
+
+    </section>
+
+    <section class="post" id="profileBox" hidden>
+        <h2>Ты вошёл в Connect! 🎉</h2>
+
+        <p id="userEmail"></p>
+
+        <button id="logoutButton">Выйти из аккаунта</button>
+    </section>
+
+    <section class="feed">
+
+        <article class="post">
+            <h3>Connect Team 🚀</h3>
+            <p>
+                Привет! Это наша первая социальная сеть.
+                Мы только начинаем разработку!
+            </p>
+        </article>
+
+        <article class="post">
+            <h3>Gamer 🎮</h3>
+            <p>Как вам наш новый сайт?</p>
+        </article>
+
+    </section>
+
+</main>
+
+<footer>
+    © 2026 Connect
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
 
 </body>
 </html>
-```
