@@ -1,107 +1,155 @@
 
-const supabase = window.connectSupabase;
+(function () {
+    if (window.__connectAppInitialized) return;
+    window.__connectAppInitialized = true;
 
-const registerForm = document.getElementById("registerForm");
-const loginForm = document.getElementById("loginForm");
+    const supabaseClient = window.connectSupabase;
 
-const authBox = document.getElementById("authBox");
-const profileBox = document.getElementById("profileBox");
-
-const authMessage = document.getElementById("authMessage");
-const userEmail = document.getElementById("userEmail");
-const headerUser = document.getElementById("headerUser");
-const logoutButton = document.getElementById("logoutButton");
-
-function showMessage(message, type = "") {
-    authMessage.textContent = message;
-    authMessage.className = "message " + type;
-}
-
-function updateUI(user) {
-    if (user) {
-        authBox.hidden = true;
-        profileBox.hidden = false;
-        userEmail.textContent = user.email || "Email не указан";
-        headerUser.textContent = "👤 " + user.email;
-    } else {
-        authBox.hidden = false;
-        profileBox.hidden = true;
-        headerUser.textContent = "👤 Гость";
+    if (!supabaseClient) {
+        console.error("Connect: Supabase клиент не найден!");
+        return;
     }
-}
 
-registerForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+    const registerForm = document.getElementById("registerForm");
+    const loginForm = document.getElementById("loginForm");
 
-    const email = document.getElementById("registerEmail").value.trim();
-    const password = document.getElementById("registerPassword").value;
+    const authBox = document.getElementById("authBox");
+    const profileBox = document.getElementById("profileBox");
 
-    showMessage("Создаём аккаунт...");
+    const authMessage = document.getElementById("authMessage");
+    const userEmail = document.getElementById("userEmail");
+    const headerUser = document.getElementById("headerUser");
+    const logoutButton = document.getElementById("logoutButton");
 
-    const { data, error } = await supabase.auth.signUp({
-        email,
-        password
+    function showMessage(message, type = "") {
+        if (!authMessage) return;
+        authMessage.textContent = message;
+        authMessage.className = "message " + type;
+    }
+
+    function updateUI(user) {
+        if (!authBox || !profileBox || !headerUser) return;
+
+        if (user) {
+            authBox.hidden = true;
+            profileBox.hidden = false;
+
+            if (userEmail) {
+                userEmail.textContent = user.email || "Email не указан";
+            }
+
+            headerUser.textContent = "👤 " + (user.email || "Пользователь");
+        } else {
+            authBox.hidden = false;
+            profileBox.hidden = true;
+            headerUser.textContent = "👤 Гость";
+        }
+    }
+
+    if (registerForm) {
+        registerForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const email = document.getElementById("registerEmail").value.trim();
+            const password = document.getElementById("registerPassword").value;
+
+            showMessage("Создаём аккаунт...");
+
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    showMessage(error.message, "error");
+                    return;
+                }
+
+                if (data.session && data.user) {
+                    updateUI(data.user);
+                    showMessage("Аккаунт создан! 🎉", "success");
+                } else {
+                    showMessage(
+                        "Аккаунт создан! Проверь почту для подтверждения Email.",
+                        "success"
+                    );
+                }
+            } catch (error) {
+                showMessage("Ошибка регистрации: " + error.message, "error");
+                console.error(error);
+            }
+        });
+    }
+
+    if (loginForm) {
+        loginForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const email = document.getElementById("loginEmail").value.trim();
+            const password = document.getElementById("loginPassword").value;
+
+            showMessage("Входим...");
+
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    showMessage(error.message, "error");
+                    return;
+                }
+
+                updateUI(data.user);
+                showMessage("Добро пожаловать в Connect! 🎉", "success");
+            } catch (error) {
+                showMessage("Ошибка входа: " + error.message, "error");
+                console.error(error);
+            }
+        });
+    }
+
+    if (logoutButton) {
+        logoutButton.addEventListener("click", async function () {
+            try {
+                const { error } = await supabaseClient.auth.signOut();
+
+                if (error) {
+                    showMessage(error.message, "error");
+                    return;
+                }
+
+                updateUI(null);
+                showMessage("Ты вышел из аккаунта.", "success");
+            } catch (error) {
+                showMessage("Ошибка выхода: " + error.message, "error");
+                console.error(error);
+            }
+        });
+    }
+
+    async function checkUser() {
+        try {
+            const { data, error } = await supabaseClient.auth.getUser();
+
+            if (error || !data.user) {
+                updateUI(null);
+            } else {
+                updateUI(data.user);
+            }
+        } catch (error) {
+            console.error("Ошибка проверки пользователя:", error);
+            updateUI(null);
+        }
+    }
+
+    supabaseClient.auth.onAuthStateChange(function (event, session) {
+        updateUI(session?.user ?? null);
     });
 
-    if (error) {
-        showMessage(error.message, "error");
-        return;
-    }
+    checkUser();
 
-    if (data.session) {
-        updateUI(data.user);
-        showMessage("Аккаунт создан! 🎉", "success");
-    } else {
-        showMessage("Проверь почту для подтверждения Email.", "success");
-    }
-});
-
-loginForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPassword").value;
-
-    showMessage("Входим...");
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-    });
-
-    if (error) {
-        showMessage(error.message, "error");
-        return;
-    }
-
-    updateUI(data.user);
-    showMessage("Добро пожаловать в Connect! 🎉", "success");
-});
-
-logoutButton.addEventListener("click", async () => {
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-        showMessage(error.message, "error");
-        return;
-    }
-
-    updateUI(null);
-    showMessage("Ты вышел из аккаунта.", "success");
-});
-
-async function checkUser() {
-    const { data, error } = await supabase.auth.getUser();
-
-    if (error || !data.user) {
-        updateUI(null);
-    } else {
-        updateUI(data.user);
-    }
-}
-
-supabase.auth.onAuthStateChange((event, session) => {
-    updateUI(session?.user ?? null);
-});
-
-checkUser();
+    console.log("Connect: приложение успешно запущено!");
+})();
