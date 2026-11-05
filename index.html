@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Connect — Социальная сеть</title>
+    <meta name="description" content="Connect — общайся, делись моментами и находи друзей.">
 
     <link rel="stylesheet" href="style.css">
 </head>
@@ -24,6 +25,8 @@
 
 <main class="container">
 
+    <!-- ПРИВЕТСТВИЕ -->
+
     <section class="welcome">
         <div class="welcome-label">ТВОЯ СОЦИАЛЬНАЯ СЕТЬ</div>
 
@@ -35,7 +38,7 @@
         </p>
     </section>
 
-    <!-- Авторизация -->
+    <!-- АВТОРИЗАЦИЯ -->
 
     <section class="auth-card" id="authBox">
 
@@ -43,6 +46,8 @@
             <h2>Твой аккаунт</h2>
             <p>Присоединяйся к Connect</p>
         </div>
+
+        <!-- РЕГИСТРАЦИЯ -->
 
         <form id="registerForm" class="auth-form">
 
@@ -79,6 +84,8 @@
             <span>УЖЕ ЕСТЬ АККАУНТ?</span>
         </div>
 
+        <!-- ВХОД -->
+
         <form id="loginForm" class="auth-form">
 
             <h3>Войти</h3>
@@ -107,13 +114,64 @@
                 Войти в Connect
             </button>
 
+            <button
+                type="button"
+                id="forgotPasswordButton"
+                class="text-button"
+            >
+                Забыли пароль?
+            </button>
+
+        </form>
+
+        <!-- ВОССТАНОВЛЕНИЕ ПАРОЛЯ -->
+
+        <form
+            id="resetPasswordForm"
+            class="auth-form"
+            hidden
+        >
+
+            <h3>Восстановление пароля</h3>
+
+            <p>
+                Укажи Email своего аккаунта.
+                Мы отправим ссылку для восстановления.
+            </p>
+
+            <label for="resetPasswordEmail">Email</label>
+
+            <input
+                type="email"
+                id="resetPasswordEmail"
+                placeholder="name@example.com"
+                autocomplete="email"
+                required
+            >
+
+            <button
+                type="submit"
+                class="primary-button"
+                id="resetPasswordSubmit"
+            >
+                Отправить ссылку
+            </button>
+
+            <button
+                type="button"
+                id="cancelResetPassword"
+                class="text-button"
+            >
+                Вернуться ко входу
+            </button>
+
         </form>
 
         <p id="authMessage" class="message" role="status"></p>
 
     </section>
 
-    <!-- Профиль пользователя -->
+    <!-- ПРОФИЛЬ -->
 
     <section class="profile-card" id="profileBox" hidden>
 
@@ -129,7 +187,79 @@
 
     </section>
 
-    <!-- Создание публикации -->
+    <!-- ГРУППЫ CONNECT -->
+
+    <section class="auth-card" id="groupsBox" hidden>
+
+        <div class="card-heading">
+            <h2>👥 Группы Connect</h2>
+            <p>Создавай сообщества и находи людей с общими интересами.</p>
+        </div>
+
+        <!-- СОЗДАНИЕ ГРУППЫ -->
+
+        <form id="createGroupForm" class="auth-form">
+
+            <h3>Создать группу</h3>
+
+            <label for="groupName">Название группы</label>
+
+            <input
+                type="text"
+                id="groupName"
+                placeholder="Например, Minecraft Community"
+                minlength="3"
+                maxlength="50"
+                required
+            >
+
+            <label for="groupDescription">Описание</label>
+
+            <textarea
+                id="groupDescription"
+                placeholder="Расскажи о своей группе..."
+                maxlength="500"
+                rows="4"
+            ></textarea>
+
+            <label for="groupAvatar">Ссылка на аватар группы</label>
+
+            <input
+                type="url"
+                id="groupAvatar"
+                placeholder="https://example.com/avatar.png"
+            >
+
+            <button
+                type="submit"
+                class="primary-button"
+                id="createGroupButton"
+            >
+                Создать группу
+            </button>
+
+        </form>
+
+        <p id="groupMessage" class="message" role="status"></p>
+
+        <!-- СПИСОК ГРУПП -->
+
+        <div class="feed-heading">
+            <h2>Все группы</h2>
+            <span>Сообщества Connect</span>
+        </div>
+
+        <div id="groupsList">
+
+            <article class="post">
+                <p>Загрузка групп...</p>
+            </article>
+
+        </div>
+
+    </section>
+
+    <!-- СОЗДАНИЕ ПУБЛИКАЦИИ -->
 
     <section class="auth-card" id="createPostBox" hidden>
 
@@ -153,7 +283,11 @@
             <div class="post-form-footer">
                 <span id="postCharCount">0 / 2000</span>
 
-                <button type="submit" class="primary-button" id="publishButton">
+                <button
+                    type="submit"
+                    class="primary-button"
+                    id="publishButton"
+                >
                     Опубликовать
                 </button>
             </div>
@@ -164,7 +298,7 @@
 
     </section>
 
-    <!-- Лента публикаций -->
+    <!-- ЛЕНТА -->
 
     <section class="feed">
 
@@ -193,7 +327,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js?v=3"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 
 </body>
 </html>
