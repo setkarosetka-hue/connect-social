@@ -1,120 +1,54 @@
-
+```html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Connect — Социальная сеть</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
 
-        body {
-            background: #0b0d12;
-            color: #ffffff;
-            font-family: Arial, sans-serif;
-        }
-
-        header {
-            background: #11141c;
-            padding: 20px;
-            border-bottom: 1px solid #252b38;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 28px;
-            font-weight: bold;
-        }
-
-        .logo span {
-            color: #8b5cf6;
-        }
-
-        main {
-            max-width: 650px;
-            margin: 40px auto;
-            padding: 20px;
-        }
-
-        .welcome {
-            background: linear-gradient(135deg, #31205e, #151a2b);
-            padding: 25px;
-            border-radius: 18px;
-            margin-bottom: 25px;
-        }
-
-        .welcome h1 {
-            margin-bottom: 10px;
-        }
-
-        .welcome p {
-            color: #c0bdd4;
-        }
-
-        .post {
-            background: #11141c;
-            border: 1px solid #252b38;
-            padding: 20px;
-            border-radius: 16px;
-            margin-bottom: 20px;
-        }
-
-        .post h3 {
-            margin-bottom: 15px;
-        }
-
-        .post p {
-            line-height: 1.6;
-        }
-
-        footer {
-            text-align: center;
-            color: #737c8f;
-            padding: 30px;
-        }
-    </style>
+    <!-- Подключение стилей -->
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<header>
-    <div class="logo">connect<span>.</span></div>
-    <div>👤</div>
-</header>
+    <header>
+        <div class="logo">connect<span>.</span></div>
+        <div class="profile-icon">👤</div>
+    </header>
 
-<main>
+    <main>
 
-    <section class="welcome">
-        <h1>Добро пожаловать в Connect 👋</h1>
-        <p>Общайся, делись моментами и находи друзей.</p>
-    </section>
+        <section class="welcome">
+            <h1>Добро пожаловать в Connect 👋</h1>
+            <p>Общайся, делись моментами и находи друзей.</p>
+        </section>
 
-    <article class="post">
-        <h3>Connect Team 🚀</h3>
-        <p>
-            Привет! Это наша первая социальная сеть.
-            Мы только начинаем разработку!
-        </p>
-    </article>
+        <section class="feed">
+            <article class="post">
+                <h3>Connect Team 🚀</h3>
+                <p>
+                    Привет! Это наша первая социальная сеть.
+                    Мы только начинаем разработку!
+                </p>
+            </article>
 
-    <article class="post">
-        <h3>Gamer 🎮</h3>
-        <p>
-            Как вам наш новый сайт?
-        </p>
-    </article>
+            <article class="post">
+                <h3>Gamer 🎮</h3>
+                <p>Как вам наш новый сайт?</p>
+            </article>
+        </section>
 
-</main>
+    </main>
 
-<footer>
-    © 2026 Connect
-</footer>
+    <footer>
+        © 2026 Connect
+    </footer>
+
+    <!-- Подключение логики -->
+    <script src="app.js"></script>
 
 </body>
 </html>
+```
