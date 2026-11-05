@@ -1,333 +1,70 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Connect — Социальная сеть</title>
-    <meta name="description" content="Connect — общайся, делись моментами и находи друзей.">
-
-    <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connect — общайтесь так, будто вы рядом</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-
-<header class="header">
-    <a href="index.html" class="logo">
-        connect<span>.</span>
-    </a>
-
-    <div id="headerUser" class="header-user">
-        👤 Гость
+<section id="landing">
+  <nav class="nav wrap">
+    <a class="logo" href="#"><b>C</b>onnect</a>
+    <div class="row">
+      <button class="btn ghost" data-act="auth" data-mode="login">Войти</button>
+      <button class="btn" data-act="auth" data-mode="register">Создать аккаунт</button>
     </div>
-</header>
-
-<main class="container">
-
-    <!-- ПРИВЕТСТВИЕ -->
-
-    <section class="welcome">
-        <div class="welcome-label">ТВОЯ СОЦИАЛЬНАЯ СЕТЬ</div>
-
-        <h1>Добро пожаловать в <span>Connect</span> 👋</h1>
-
-        <p>
-            Общайся, делись моментами и находи друзей.
-            Всё начинается здесь.
-        </p>
-    </section>
-
-    <!-- АВТОРИЗАЦИЯ -->
-
-    <section class="auth-card" id="authBox">
-
-        <div class="card-heading">
-            <h2>Твой аккаунт</h2>
-            <p>Присоединяйся к Connect</p>
-        </div>
-
-        <!-- РЕГИСТРАЦИЯ -->
-
-        <form id="registerForm" class="auth-form">
-
-            <h3>Создать аккаунт</h3>
-
-            <label for="registerEmail">Email</label>
-
-            <input
-                type="email"
-                id="registerEmail"
-                placeholder="name@example.com"
-                autocomplete="email"
-                required
-            >
-
-            <label for="registerPassword">Пароль</label>
-
-            <input
-                type="password"
-                id="registerPassword"
-                placeholder="Минимум 6 символов"
-                minlength="6"
-                autocomplete="new-password"
-                required
-            >
-
-            <button type="submit" class="primary-button">
-                Зарегистрироваться
-            </button>
-
-        </form>
-
-        <div class="form-divider">
-            <span>УЖЕ ЕСТЬ АККАУНТ?</span>
-        </div>
-
-        <!-- ВХОД -->
-
-        <form id="loginForm" class="auth-form">
-
-            <h3>Войти</h3>
-
-            <label for="loginEmail">Email</label>
-
-            <input
-                type="email"
-                id="loginEmail"
-                placeholder="name@example.com"
-                autocomplete="email"
-                required
-            >
-
-            <label for="loginPassword">Пароль</label>
-
-            <input
-                type="password"
-                id="loginPassword"
-                placeholder="Твой пароль"
-                autocomplete="current-password"
-                required
-            >
-
-            <button type="submit" class="secondary-button">
-                Войти в Connect
-            </button>
-
-            <button
-                type="button"
-                id="forgotPasswordButton"
-                class="text-button"
-            >
-                Забыли пароль?
-            </button>
-
-        </form>
-
-        <!-- ВОССТАНОВЛЕНИЕ ПАРОЛЯ -->
-
-        <form
-            id="resetPasswordForm"
-            class="auth-form"
-            hidden
-        >
-
-            <h3>Восстановление пароля</h3>
-
-            <p>
-                Укажи Email своего аккаунта.
-                Мы отправим ссылку для восстановления.
-            </p>
-
-            <label for="resetPasswordEmail">Email</label>
-
-            <input
-                type="email"
-                id="resetPasswordEmail"
-                placeholder="name@example.com"
-                autocomplete="email"
-                required
-            >
-
-            <button
-                type="submit"
-                class="primary-button"
-                id="resetPasswordSubmit"
-            >
-                Отправить ссылку
-            </button>
-
-            <button
-                type="button"
-                id="cancelResetPassword"
-                class="text-button"
-            >
-                Вернуться ко входу
-            </button>
-
-        </form>
-
-        <p id="authMessage" class="message" role="status"></p>
-
-    </section>
-
-    <!-- ПРОФИЛЬ -->
-
-    <section class="profile-card" id="profileBox" hidden>
-
-        <div class="profile-avatar">👤</div>
-
-        <h2>Ты в Connect! 🎉</h2>
-
-        <p id="userEmail"></p>
-
-        <button id="logoutButton" class="secondary-button">
-            Выйти из аккаунта
-        </button>
-
-    </section>
-
-    <!-- ГРУППЫ CONNECT -->
-
-    <section class="auth-card" id="groupsBox" hidden>
-
-        <div class="card-heading">
-            <h2>👥 Группы Connect</h2>
-            <p>Создавай сообщества и находи людей с общими интересами.</p>
-        </div>
-
-        <!-- СОЗДАНИЕ ГРУППЫ -->
-
-        <form id="createGroupForm" class="auth-form">
-
-            <h3>Создать группу</h3>
-
-            <label for="groupName">Название группы</label>
-
-            <input
-                type="text"
-                id="groupName"
-                placeholder="Например, Minecraft Community"
-                minlength="3"
-                maxlength="50"
-                required
-            >
-
-            <label for="groupDescription">Описание</label>
-
-            <textarea
-                id="groupDescription"
-                placeholder="Расскажи о своей группе..."
-                maxlength="500"
-                rows="4"
-            ></textarea>
-
-            <label for="groupAvatar">Ссылка на аватар группы</label>
-
-            <input
-                type="url"
-                id="groupAvatar"
-                placeholder="https://example.com/avatar.png"
-            >
-
-            <button
-                type="submit"
-                class="primary-button"
-                id="createGroupButton"
-            >
-                Создать группу
-            </button>
-
-        </form>
-
-        <p id="groupMessage" class="message" role="status"></p>
-
-        <!-- СПИСОК ГРУПП -->
-
-        <div class="feed-heading">
-            <h2>Все группы</h2>
-            <span>Сообщества Connect</span>
-        </div>
-
-        <div id="groupsList">
-
-            <article class="post">
-                <p>Загрузка групп...</p>
-            </article>
-
-        </div>
-
-    </section>
-
-    <!-- СОЗДАНИЕ ПУБЛИКАЦИИ -->
-
-    <section class="auth-card" id="createPostBox" hidden>
-
-        <div class="card-heading">
-            <h2>Новая публикация</h2>
-            <p>Поделись своими мыслями с Connect</p>
-        </div>
-
-        <form id="createPostForm" class="auth-form">
-
-            <label for="postContent">Что у тебя нового?</label>
-
-            <textarea
-                id="postContent"
-                placeholder="Напиши что-нибудь..."
-                maxlength="2000"
-                rows="4"
-                required
-            ></textarea>
-
-            <div class="post-form-footer">
-                <span id="postCharCount">0 / 2000</span>
-
-                <button
-                    type="submit"
-                    class="primary-button"
-                    id="publishButton"
-                >
-                    Опубликовать
-                </button>
-            </div>
-
-        </form>
-
-        <p id="postMessage" class="message" role="status"></p>
-
-    </section>
-
-    <!-- ЛЕНТА -->
-
-    <section class="feed">
-
-        <div class="feed-heading">
-            <h2>Лента Connect</h2>
-            <span>Публикации пользователей</span>
-        </div>
-
-        <div id="postsFeed">
-
-            <article class="post">
-                <p>Загрузка публикаций...</p>
-            </article>
-
-        </div>
-
-        <p id="feedMessage" class="message" role="status"></p>
-
-    </section>
-
-</main>
-
-<footer class="footer">
-    © 2026 Connect · Общайся и находи друзей
-</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase.js?v=3"></script>
-<script src="app.js?v=5"></script>
-
+  </nav>
+  <header class="hero wrap">
+    <div class="hero-t">
+      <h1>Общайтесь так, будто вы рядом</h1>
+      <p>Connect — тихая социальная сеть без шума: только люди, которые вам интересны, и истории, которые стоит прочитать.</p>
+      <div class="row">
+        <button class="btn lg" data-act="auth" data-mode="register">Присоединиться</button>
+        <button class="btn ghost lg" data-act="demo">Посмотреть демо</button>
+      </div>
+      <small class="mu">Демо открывается без регистрации.</small>
+    </div>
+    <div class="hero-v" aria-hidden="true">
+      <article class="card post f1"><header><span class="av" style="--h:265">А</span><div><b>Алиса Морозова</b><span>@alisa · 5 мин</span></div></header><p>Закончила редизайн приложения. Меньше элементов — больше воздуха.</p><footer><button class="act like on" data-fake>♥ 128</button><span class="act">💬 14</span></footer></article>
+      <article class="card post f2"><header><span class="av" style="--h:200">Т</span><div><b>Тимур Каримов</b><span>@timur · 1 ч</span></div></header><p>Выложил свой первый open-source проект. Заходите в гости!</p><div class="cover" style="--h:200"></div><footer><button class="act like" data-fake>♥ 86</button><span class="act">💬 9</span></footer></article>
+    </div>
+  </header>
+  <section class="wrap feats">
+    <div><h3>Лента без хаоса</h3><p>Публикации людей, на которых вы подписаны, и никакой лишней рекламы.</p></div>
+    <div><h3>Живое общение</h3><p>Лайки и комментарии появляются мгновенно, а разговор остаётся в одном месте.</p></div>
+    <div><h3>Ваш профиль</h3><p>Расскажите о себе, собирайте подписчиков и показывайте лучшее.</p></div>
+  </section>
+  <footer class="wrap foot"><span class="logo"><b>C</b>onnect</span><span class="mu">© 2026 Connect. Сделано с заботой о людях.</span></footer>
+</section>
+
+<div id="app" hidden>
+  <header class="top">
+    <a class="logo" data-go="home"><b>C</b>onnect</a>
+    <label class="search"><input id="q" placeholder="Поиск людей и публикаций" autocomplete="off"></label>
+    <div class="row"><button class="ic" data-act="theme" aria-label="Сменить тему" id="themeBtn"></button><button class="meb" data-go="profile" id="meBtn" aria-label="Мой профиль"></button></div>
+  </header>
+  <div class="layout"><aside class="side" id="side"></aside><main id="main"></main><aside class="rail" id="rail"></aside></div>
+  <nav class="bottom" id="bottom"></nav>
+</div>
+
+<div class="modal" id="auth" hidden>
+  <div class="sheet card">
+    <button class="x" data-act="close" aria-label="Закрыть">×</button>
+    <h2 id="authT">Добро пожаловать</h2>
+    <div class="tabs"><button data-act="mode" data-mode="login">Вход</button><button data-act="mode" data-mode="register">Регистрация</button></div>
+    <div class="fields">
+      <input id="fName" placeholder="Ваше имя" autocomplete="name">
+      <input id="fMail" type="email" placeholder="Электронная почта" autocomplete="email">
+      <input id="fPass" type="password" placeholder="Пароль (от 6 символов)" autocomplete="current-password">
+      <p class="err" id="err"></p>
+      <button class="btn lg" data-act="submit" id="authBtn">Продолжить</button>
+    </div>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+<script src="app.js"></script>
 </body>
 </html>
