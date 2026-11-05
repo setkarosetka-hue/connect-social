@@ -10,6 +10,8 @@
         return;
     }
 
+    const REDIRECT_URL = "https://setkarosetka-hue.github.io/connect-social/";
+
     const registerForm = document.getElementById("registerForm");
     const loginForm = document.getElementById("loginForm");
 
@@ -23,6 +25,7 @@
 
     function showMessage(message, type = "") {
         if (!authMessage) return;
+
         authMessage.textContent = message;
         authMessage.className = "message " + type;
     }
@@ -46,6 +49,7 @@
         }
     }
 
+    // Регистрация
     if (registerForm) {
         registerForm.addEventListener("submit", async function (event) {
             event.preventDefault();
@@ -58,11 +62,15 @@
             try {
                 const { data, error } = await supabaseClient.auth.signUp({
                     email: email,
-                    password: password
+                    password: password,
+                    options: {
+                        emailRedirectTo: REDIRECT_URL
+                    }
                 });
 
                 if (error) {
                     showMessage(error.message, "error");
+                    console.error("Ошибка регистрации:", error);
                     return;
                 }
 
@@ -71,7 +79,7 @@
                     showMessage("Аккаунт создан! 🎉", "success");
                 } else {
                     showMessage(
-                        "Аккаунт создан! Проверь почту для подтверждения Email.",
+                        "Аккаунт создан! Проверь почту и подтверди Email.",
                         "success"
                     );
                 }
@@ -82,6 +90,7 @@
         });
     }
 
+    // Вход
     if (loginForm) {
         loginForm.addEventListener("submit", async function (event) {
             event.preventDefault();
@@ -99,6 +108,7 @@
 
                 if (error) {
                     showMessage(error.message, "error");
+                    console.error("Ошибка входа:", error);
                     return;
                 }
 
@@ -111,6 +121,7 @@
         });
     }
 
+    // Выход
     if (logoutButton) {
         logoutButton.addEventListener("click", async function () {
             try {
@@ -130,6 +141,7 @@
         });
     }
 
+    // Проверка пользователя при загрузке
     async function checkUser() {
         try {
             const { data, error } = await supabaseClient.auth.getUser();
@@ -145,6 +157,7 @@
         }
     }
 
+    // Слежение за авторизацией
     supabaseClient.auth.onAuthStateChange(function (event, session) {
         updateUI(session?.user ?? null);
     });
