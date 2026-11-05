@@ -8,7 +8,8 @@ const P = {
   profile: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
   heart: '<path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/>',
   chat: '<path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.5A8 8 0 1 1 21 12z"/>',
-  moon: '<path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10z"/>'
+  moon: '<path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10z"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'
 };
 const ic = (n, f) => `<svg class="i" viewBox="0 0 24 24" fill="${f ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -45,12 +46,13 @@ async function loadAll() {
 }
 
 function post(p) {
-  const u = U(p.uid), liked = p.likes.includes(S.me);
+  const u = U(p.uid), liked = p.likes.includes(S.me), mine = p.uid === S.me;
   return `<article class="card post" data-id="${p.id}">
     <header data-user="${u.id}">${av(u)}<div><b>${esc(u.name)}</b><span>@${esc(u.handle)} · ${ago(p.t)}</span></div></header>
     <p>${rich(p.text)}</p>${p.cover != null ? `<div class="cover" style="--h:${p.cover}"></div>` : ''}
     <footer><button class="act like ${liked ? 'on' : ''}" data-act="like" aria-pressed="${liked}">${ic('heart', liked)}${p.likes.length}</button>
-    <button class="act" data-act="cmt">${ic('chat')}${p.cm.length}</button></footer>
+    <button class="act" data-act="cmt">${ic('chat')}${p.cm.length}</button>
+    ${mine ? `<button class="act del" data-act="del" aria-label="Удалить публикацию">${ic('trash')}</button>` : ''}</footer>
     <div class="cm ${open.has(p.id) ? 'open' : ''}">${p.cm.map(c => { const a = U(c.uid); return `<div class="c">${av(a, 'sm')}<div><b>${esc(a.name)}</b><small>${ago(c.t)}</small><br>${esc(c.text)}</div></div>`; }).join('')}
     <div class="cf"><input placeholder="Напишите комментарий" maxlength="300"><button class="btn" data-act="send">Отправить</button></div></div></article>`;
 }
@@ -70,7 +72,7 @@ function main() {
   const fc = S.follows.filter(f => f.following_id === u.id).length;
   const fg = S.follows.filter(f => f.follower_id === u.id).length;
   return `<div class="card"><div class="pcover" style="--h:${u.hue}"></div><div class="phead"><div class="rw">${av(u, 'lg')}
-    ${mine ? '<button class="btn ghost" data-act="logout">Выйти</button>' : `<button class="btn ${fl ? 'ghost' : ''}" data-act="follow" data-id="${u.id}">${fl ? 'Вы подписаны' : 'Подписаться'}</button>`}</div>
+    ${mine ? '<div class="row"><button class="btn ghost" data-act="edit">Редактировать</button><button class="btn ghost" data-act="logout">Выйти</button></div>' : `<button class="btn ${fl ? 'ghost' : ''}" data-act="follow" data-id="${u.id}">${fl ? 'Вы подписаны' : 'Подписаться'}</button>`}</div>
     <h2>${esc(u.name)}</h2><span class="mu">@${esc(u.handle)}</span><p style="margin-top:8px">${esc(u.bio || '')}</p>
     <div class="nums"><div><b>${S.posts.filter(p => p.uid === u.id).length}</b><span>постов</span></div><div><b>${fc}</b><span>подписчиков</span></div><div><b>${fg}</b><span>подписок</span></div></div></div></div>
     ${feed(S.posts.filter(p => p.uid === u.id).sort((a, b) => b.t - a.t))}`;
@@ -134,9 +136,25 @@ function refresh(id) {
   const el = $(`[data-id="${id}"]`), p = S.posts.find(x => x.id === id);
   if (el && p) { const d = document.createElement('div'); d.innerHTML = post(p); el.replaceWith(d.firstElementChild); }
 }
+const closeEdit = () => { const e = $('#editM'); if (e) e.remove(); };
+function openEdit() {
+  const m = me(); closeEdit();
+  const d = document.createElement('div');
+  d.className = 'modal'; d.id = 'editM';
+  d.innerHTML = `<div class="sheet card"><button class="x" data-act="closeedit" aria-label="Закрыть">×</button><h2>Редактировать профиль</h2>
+    <div class="ef"><input id="eName" maxlength="40" placeholder="Имя" value="${esc(m.name)}">
+    <textarea id="eBio" rows="4" maxlength="160" placeholder="О себе">${esc(m.bio || '')}</textarea>
+    <p class="err" id="eErr"></p><button class="btn lg" data-act="saveprofile">Сохранить</button></div></div>`;
+  document.body.appendChild(d);
+  $('#eName').focus();
+}
 document.addEventListener('click', async e => {
   const t = e.target.closest('[data-act],[data-go],[data-user],[data-fake]');
-  if (!t) return (e.target.id === 'auth') && ($('#auth').hidden = true);
+  if (!t) {
+    if (e.target.id === 'auth') $('#auth').hidden = true;
+    if (e.target.id === 'editM') closeEdit();
+    return;
+  }
   if (t.dataset.fake !== undefined) { const on = t.classList.toggle('on'), n = parseInt(t.textContent.replace(/\D/g, '')) + (on ? 1 : -1); t.textContent = '♥ ' + n; return; }
   if (t.dataset.go) return go(t.dataset.go);
   const act = t.dataset.act;
@@ -148,6 +166,21 @@ document.addEventListener('click', async e => {
   else if (act === 'submit') submit();
   else if (act === 'theme') { const dark = getComputedStyle(document.body).colorScheme.includes('dark'), th = dark ? 'light' : 'dark'; document.documentElement.dataset.theme = th; try { localStorage.setItem('connect_theme', th); } catch (x) {} }
   else if (act === 'logout') { await sb.auth.signOut(); S.me = null; render(); toast('Вы вышли из аккаунта'); }
+  else if (act === 'edit') openEdit();
+  else if (act === 'closeedit') closeEdit();
+  else if (act === 'saveprofile') {
+    const name = $('#eName').value.trim(), bio = $('#eBio').value.trim();
+    if (name.length < 2) return $('#eErr').textContent = 'Имя должно содержать минимум 2 символа';
+    const r = await sb.from('profiles').update({ name, bio }).eq('id', S.me);
+    if (!ok(r)) return;
+    Object.assign(me(), { name, bio }); closeEdit(); render(); toast('Профиль сохранён');
+  }
+  else if (act === 'del') {
+    if (!confirm('Удалить эту публикацию? Это нельзя отменить.')) return;
+    const r = await sb.from('posts').delete().match({ id });
+    if (!ok(r)) return;
+    S.posts = S.posts.filter(x => x.id !== id); render(); toast('Публикация удалена');
+  }
   else if (act === 'like') {
     const i = p.likes.indexOf(S.me), had = i >= 0;
     had ? p.likes.splice(i, 1) : p.likes.push(S.me); refresh(id);
@@ -181,7 +214,7 @@ document.addEventListener('click', async e => {
   }
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') $('#auth').hidden = true;
+  if (e.key === 'Escape') { $('#auth').hidden = true; closeEdit(); }
   if (e.key === 'Enter' && e.target.closest('.cf')) e.target.nextElementSibling.click();
   if (e.key === 'Enter' && e.target.closest('.fields')) submit();
 });
