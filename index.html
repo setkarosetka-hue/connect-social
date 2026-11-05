@@ -35,6 +35,8 @@
         </p>
     </section>
 
+    <!-- Авторизация -->
+
     <section class="auth-card" id="authBox">
 
         <div class="card-heading">
@@ -111,6 +113,8 @@
 
     </section>
 
+    <!-- Профиль пользователя -->
+
     <section class="profile-card" id="profileBox" hidden>
 
         <div class="profile-avatar">👤</div>
@@ -125,47 +129,59 @@
 
     </section>
 
+    <!-- Создание публикации -->
+
+    <section class="auth-card" id="createPostBox" hidden>
+
+        <div class="card-heading">
+            <h2>Новая публикация</h2>
+            <p>Поделись своими мыслями с Connect</p>
+        </div>
+
+        <form id="createPostForm" class="auth-form">
+
+            <label for="postContent">Что у тебя нового?</label>
+
+            <textarea
+                id="postContent"
+                placeholder="Напиши что-нибудь..."
+                maxlength="2000"
+                rows="4"
+                required
+            ></textarea>
+
+            <div class="post-form-footer">
+                <span id="postCharCount">0 / 2000</span>
+
+                <button type="submit" class="primary-button" id="publishButton">
+                    Опубликовать
+                </button>
+            </div>
+
+        </form>
+
+        <p id="postMessage" class="message" role="status"></p>
+
+    </section>
+
+    <!-- Лента публикаций -->
+
     <section class="feed">
 
         <div class="feed-heading">
             <h2>Лента Connect</h2>
-            <span>Первые публикации</span>
+            <span>Публикации пользователей</span>
         </div>
 
-        <article class="post">
+        <div id="postsFeed">
 
-            <div class="post-user">
-                <div class="post-avatar">🚀</div>
+            <article class="post">
+                <p>Загрузка публикаций...</p>
+            </article>
 
-                <div>
-                    <h3>Connect Team</h3>
-                    <span>Команда Connect</span>
-                </div>
-            </div>
+        </div>
 
-            <p>
-                Привет! Добро пожаловать в нашу социальную сеть.
-                Мы только начинаем разработку Connect!
-            </p>
-
-        </article>
-
-        <article class="post">
-
-            <div class="post-user">
-                <div class="post-avatar">🎮</div>
-
-                <div>
-                    <h3>Gamer</h3>
-                    <span>Пользователь Connect</span>
-                </div>
-            </div>
-
-            <p>
-                Как вам наш новый сайт? 😎
-            </p>
-
-        </article>
+        <p id="feedMessage" class="message" role="status"></p>
 
     </section>
 
@@ -177,8 +193,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 
 </body>
 </html>
-
