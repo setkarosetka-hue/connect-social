@@ -16,15 +16,37 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 
 let S = { me: null, users: [], posts: [], follows: [] };
 let view = { name: 'home', uid: null }, cover = false, q = '', open = new Set(), mode = 'login';
+let pic = null, picURL = null, draft = '', avFile = null;
 
 const U = id => S.users.find(u => u.id === id) || { id, name: '?', handle: 'user', bio: '', hue: 0 };
 const me = () => U(S.me);
 const isF = id => S.follows.some(f => f.follower_id === S.me && f.following_id === id);
 const ago = t => { const m = Math.max(1, Math.round((Date.now() - t) / 6e4)); return m < 60 ? m + ' мин' : m < 1440 ? Math.round(m / 60) + ' ч' : Math.round(m / 1440) + ' дн'; };
-const av = (u, c = '') => `<span class="av ${c}" style="--h:${u.hue}">${esc((u.name[0] || '?').toUpperCase())}</span>`;
+const av = (u, c = '') => `<span class="av ${c}" style="--h:${u.hue}">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc((u.name[0] || '?').toUpperCase())}</span>`;
 const toast = m => { const e = $('#toast'); e.textContent = m; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2400); };
 const rich = s => esc(s).replace(/#([\p{L}\d_]+)/gu, '<span class="tag">#$1</span>');
 const ok = r => { if (r.error) { toast('Ошибка: ' + r.error.message); return false; } return true; };
+
+const shrink = (file, max) => new Promise((res, rej) => {
+  const im = new Image();
+  im.onload = () => {
+    const k = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement('canvas');
+    c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(im.src);
+    c.toBlob(b => b ? res(b) : rej(new Error('Не удалось обработать фото')), 'image/jpeg', .82);
+  };
+  im.onerror = () => rej(new Error('Не удалось прочитать фото'));
+  im.src = URL.createObjectURL(file);
+});
+async function upload(file, max) {
+  try {
+    const b = await shrink(file, max), path = `${S.me}/${Date.now()}.jpg`;
+    const { error } = await sb.storage.from('media').upload(path, b, { contentType: 'image/jpeg' });
+    if (error) { toast('Ошибка загрузки: ' + error.message); return null; }
+    return sb.storage.from('media').getPublicUrl(path).data.publicUrl;
+  } catch (e) { toast(e.message); return null; }
+}
 
 async function loadAll() {
   const [u, p, l, c, f] = await Promise.all([
@@ -39,7 +61,7 @@ async function loadAll() {
   S.users = u.data || [];
   S.follows = f.data || [];
   S.posts = (p.data || []).map(x => ({
-    id: x.id, uid: x.user_id, t: new Date(x.created_at).getTime(), text: x.text, cover: x.cover,
+    id: x.id, uid: x.user_id, t: new Date(x.created_at).getTime(), text: x.text, cover: x.cover, image: x.image,
     likes: likes.filter(k => k.post_id === x.id).map(k => k.user_id),
     cm: cms.filter(k => k.post_id === x.id).map(k => ({ uid: k.user_id, t: new Date(k.created_at).getTime(), text: k.text }))
   }));
@@ -47,9 +69,10 @@ async function loadAll() {
 
 function post(p) {
   const u = U(p.uid), liked = p.likes.includes(S.me), mine = p.uid === S.me;
+  const media = p.image ? `<img class="pimg" src="${esc(p.image)}" alt="" loading="lazy">` : p.cover != null ? `<div class="cover" style="--h:${p.cover}"></div>` : '';
   return `<article class="card post" data-id="${p.id}">
     <header data-user="${u.id}">${av(u)}<div><b>${esc(u.name)}</b><span>@${esc(u.handle)} · ${ago(p.t)}</span></div></header>
-    <p>${rich(p.text)}</p>${p.cover != null ? `<div class="cover" style="--h:${p.cover}"></div>` : ''}
+    <p>${rich(p.text)}</p>${media}
     <footer><button class="act like ${liked ? 'on' : ''}" data-act="like" aria-pressed="${liked}">${ic('heart', liked)}${p.likes.length}</button>
     <button class="act" data-act="cmt">${ic('chat')}${p.cm.length}</button>
     ${mine ? `<button class="act del" data-act="del" aria-label="Удалить публикацию">${ic('trash')}</button>` : ''}</footer>
@@ -63,8 +86,10 @@ function main() {
   const m = me(), all = [...S.posts].filter(match);
   if (view.name === 'home') {
     return `<div class="stories">${S.users.map(u => `<div class="st" data-user="${u.id}">${av(u)}${esc(u.name.split(' ')[0])}</div>`).join('')}</div>
-    <div class="card comp">${av(m)}<div style="flex:1"><textarea id="txt" maxlength="500" placeholder="Что нового, ${esc(m.name.split(' ')[0])}?"></textarea>
-    <div class="bar"><button class="chip ${cover ? 'on' : ''}" data-act="cover">С обложкой</button><button class="btn" data-act="publish">Опубликовать</button></div></div></div>
+    <div class="card comp">${av(m)}<div style="flex:1"><textarea id="txt" maxlength="500" placeholder="Что нового, ${esc(m.name.split(' ')[0])}?">${esc(draft)}</textarea>
+    ${picURL ? `<div class="prev"><img src="${picURL}" alt=""><button data-act="unpic" aria-label="Убрать фото">×</button></div>` : ''}
+    <div class="bar"><div class="chips"><button class="chip ${picURL ? 'on' : ''}" data-act="pick">Фото</button><button class="chip ${cover ? 'on' : ''}" data-act="cover">С обложкой</button></div><button class="btn" data-act="publish">Опубликовать</button></div>
+    <input type="file" id="pic" accept="image/*" hidden></div></div>
     ${feed(all.sort((a, b) => b.t - a.t))}`;
   }
   if (view.name === 'explore') return `<h2 class="t">Популярное</h2>${feed(all.sort((a, b) => b.likes.length + b.cm.length - a.likes.length - a.cm.length))}`;
@@ -136,18 +161,32 @@ function refresh(id) {
   const el = $(`[data-id="${id}"]`), p = S.posts.find(x => x.id === id);
   if (el && p) { const d = document.createElement('div'); d.innerHTML = post(p); el.replaceWith(d.firstElementChild); }
 }
-const closeEdit = () => { const e = $('#editM'); if (e) e.remove(); };
+const closeEdit = () => { const e = $('#editM'); if (e) e.remove(); avFile = null; };
 function openEdit() {
   const m = me(); closeEdit();
   const d = document.createElement('div');
   d.className = 'modal'; d.id = 'editM';
   d.innerHTML = `<div class="sheet card"><button class="x" data-act="closeedit" aria-label="Закрыть">×</button><h2>Редактировать профиль</h2>
-    <div class="ef"><input id="eName" maxlength="40" placeholder="Имя" value="${esc(m.name)}">
+    <div class="ef"><div class="row">${av(m)}<label class="chip" id="eAvL">Сменить фото профиля<input id="eAv" type="file" accept="image/*" hidden></label></div>
+    <input id="eName" maxlength="40" placeholder="Имя" value="${esc(m.name)}">
     <textarea id="eBio" rows="4" maxlength="160" placeholder="О себе">${esc(m.bio || '')}</textarea>
     <p class="err" id="eErr"></p><button class="btn lg" data-act="saveprofile">Сохранить</button></div></div>`;
   document.body.appendChild(d);
   $('#eName').focus();
 }
+function setPic(file) {
+  draft = ($('#txt') || {}).value || '';
+  if (picURL) URL.revokeObjectURL(picURL);
+  pic = file; picURL = file ? URL.createObjectURL(file) : null;
+  render();
+}
+document.addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  if (!f.type.startsWith('image/')) return toast('Выберите файл с изображением');
+  if (e.target.id === 'pic') setPic(f);
+  if (e.target.id === 'eAv') { avFile = f; $('#eAvL').firstChild.textContent = 'Выбрано: ' + f.name.slice(0, 24); }
+});
 document.addEventListener('click', async e => {
   const t = e.target.closest('[data-act],[data-go],[data-user],[data-fake]');
   if (!t) {
@@ -171,10 +210,15 @@ document.addEventListener('click', async e => {
   else if (act === 'saveprofile') {
     const name = $('#eName').value.trim(), bio = $('#eBio').value.trim();
     if (name.length < 2) return $('#eErr').textContent = 'Имя должно содержать минимум 2 символа';
-    const r = await sb.from('profiles').update({ name, bio }).eq('id', S.me);
-    if (!ok(r)) return;
-    Object.assign(me(), { name, bio }); closeEdit(); render(); toast('Профиль сохранён');
+    t.disabled = true;
+    let avatar = me().avatar || null;
+    if (avFile) { const url = await upload(avFile, 400); if (!url) { t.disabled = false; return; } avatar = url; }
+    const r = await sb.from('profiles').update({ name, bio, avatar }).eq('id', S.me);
+    if (!ok(r)) { t.disabled = false; return; }
+    Object.assign(me(), { name, bio, avatar }); closeEdit(); render(); toast('Профиль сохранён');
   }
+  else if (act === 'pick') $('#pic').click();
+  else if (act === 'unpic') setPic(null);
   else if (act === 'del') {
     if (!confirm('Удалить эту публикацию? Это нельзя отменить.')) return;
     const r = await sb.from('posts').delete().match({ id });
@@ -206,11 +250,15 @@ document.addEventListener('click', async e => {
   else if (act === 'compose') { go('home'); setTimeout(() => $('#txt') && $('#txt').focus(), 300); }
   else if (act === 'publish') {
     const v = $('#txt').value.trim();
-    if (!v) return toast('Напишите что-нибудь, чтобы опубликовать');
-    const r = await sb.from('posts').insert({ user_id: S.me, text: v, cover: cover ? me().hue : null }).select().single();
-    if (!ok(r)) return;
-    S.posts.unshift({ id: r.data.id, uid: S.me, t: new Date(r.data.created_at).getTime(), text: v, cover: r.data.cover, likes: [], cm: [] });
-    cover = false; render(); toast('Опубликовано');
+    if (!v) return toast(pic ? 'Добавьте подпись к фото' : 'Напишите что-нибудь, чтобы опубликовать');
+    t.disabled = true;
+    let image = null;
+    if (pic) { image = await upload(pic, 1280); if (!image) { t.disabled = false; return; } }
+    const r = await sb.from('posts').insert({ user_id: S.me, text: v, cover: !pic && cover ? me().hue : null, image }).select().single();
+    if (!ok(r)) { t.disabled = false; return; }
+    S.posts.unshift({ id: r.data.id, uid: S.me, t: new Date(r.data.created_at).getTime(), text: v, cover: r.data.cover, image: r.data.image, likes: [], cm: [] });
+    cover = false; draft = ''; if (picURL) URL.revokeObjectURL(picURL); pic = picURL = null;
+    render(); toast('Опубликовано');
   }
 });
 document.addEventListener('keydown', e => {
