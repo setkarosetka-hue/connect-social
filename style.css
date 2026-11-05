@@ -311,3 +311,69 @@ button:disabled {
         align-items: flex-start;
     }
 }
+.logo {
+    text-decoration: none;
+}
+
+.auth-card {
+    background: #11141c;
+    border: 1px solid #252b38;
+    border-radius: 18px;
+    padding: 25px;
+    margin-bottom: 22px;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.auth-form input {
+    display: block;
+    width: 100%;
+    background: #0b0d12;
+    border: 1px solid #252b38;
+    color: white;
+    padding: 14px;
+    border-radius: 10px;
+}
+
+.auth-form button {
+    display: block;
+    width: 100%;
+    background: #8b5cf6;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: 8px;
+}
+
+.auth-form label {
+    display: block;
+    margin-top: 8px;
+    color: #c4c9d4;
+}
+
+.secondary-button {
+    background: #202533 !important;
+}
+
+.form-divider {
+    text-align: center;
+    margin: 25px 0;
+    color: #737c8f;
+}
+
+.message {
+    margin-top: 18px;
+}
+
+.profile-card {
+    background: #11141c;
+    border: 1px solid #252b38;
+    border-radius: 18px;
+    padding: 25px;
+    text-align: center;
+}
