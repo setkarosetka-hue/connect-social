@@ -1,100 +1,124 @@
 
-/* CONNECT SOCIAL NETWORK */
+const SUPABASE_URL = "https://hnoihvskvrrsexmlelkb.supabase.co";
 
-document.addEventListener("DOMContentLoaded", () => {
+const SUPABASE_KEY = "sb_publishable_wHaB1q0aObePTLAo7yxwaQ_96IhnTm1";
 
-    // LIKE BUTTONS
+const supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
 
-    document.querySelectorAll(".like-btn").forEach(button => {
+const registerForm = document.getElementById("registerForm");
+const loginForm = document.getElementById("loginForm");
 
-        button.addEventListener("click", () => {
+const authBox = document.getElementById("authBox");
+const profileBox = document.getElementById("profileBox");
 
-            let count = button.querySelector("span");
+const authMessage = document.getElementById("authMessage");
+const userEmail = document.getElementById("userEmail");
+const headerUser = document.getElementById("headerUser");
 
-            if (!count) {
-                count = document.createElement("span");
-                count.textContent = "0";
-                button.appendChild(count);
-            }
+const logoutButton = document.getElementById("logoutButton");
 
-            let likes = Number(count.textContent);
+// Сообщение
+function showMessage(message) {
+    authMessage.textContent = message;
+}
 
-            if (button.classList.contains("liked")) {
-                likes--;
-                button.classList.remove("liked");
-                button.innerHTML = `♡ <span>${likes}</span> Лайков`;
-            } else {
-                likes++;
-                button.classList.add("liked");
-                button.innerHTML = `♥ <span>${likes}</span> Лайков`;
-            }
+// Обновление интерфейса
+function updateUI(user) {
+    if (user) {
+        authBox.hidden = true;
+        profileBox.hidden = false;
 
-        });
+        userEmail.textContent = "Email: " + user.email;
+        headerUser.textContent = "👤 " + user.email;
+    } else {
+        authBox.hidden = false;
+        profileBox.hidden = true;
 
+        headerUser.textContent = "👤";
+    }
+}
+
+// Регистрация
+registerForm.addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const email = document.getElementById("registerEmail").value;
+    const password = document.getElementById("registerPassword").value;
+
+    showMessage("Создаём аккаунт...");
+
+    const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: password
     });
 
-    // CREATE POST
-
-    const publishButton = document.getElementById("publishBtn");
-    const postInput = document.getElementById("postInput");
-    const postsContainer = document.getElementById("posts");
-
-    if (publishButton && postInput && postsContainer) {
-
-        publishButton.addEventListener("click", () => {
-
-            const text = postInput.value.trim();
-
-            if (text.length === 0) {
-                alert("Напиши что-нибудь перед публикацией!");
-                return;
-            }
-
-            if (text.length > 2000) {
-                alert("Максимальная длина поста — 2000 символов.");
-                return;
-            }
-
-            const post = document.createElement("article");
-            post.className = "post";
-
-            const title = document.createElement("h3");
-            title.textContent = "Ты 👤";
-
-            const paragraph = document.createElement("p");
-            paragraph.textContent = text;
-
-            const likeButton = document.createElement("button");
-            likeButton.className = "like-btn";
-            likeButton.innerHTML = "♡ <span>0</span> Лайков";
-
-            likeButton.addEventListener("click", () => {
-
-                let count = likeButton.querySelector("span");
-                let likes = Number(count.textContent);
-
-                if (likeButton.classList.contains("liked")) {
-                    likes--;
-                    likeButton.classList.remove("liked");
-                    likeButton.innerHTML = `♡ <span>${likes}</span> Лайков`;
-                } else {
-                    likes++;
-                    likeButton.classList.add("liked");
-                    likeButton.innerHTML = `♥ <span>${likes}</span> Лайков`;
-                }
-
-            });
-
-            post.appendChild(title);
-            post.appendChild(paragraph);
-            post.appendChild(likeButton);
-
-            postsContainer.prepend(post);
-
-            postInput.value = "";
-
-        });
-
+    if (error) {
+        showMessage("Ошибка: " + error.message);
+        return;
     }
 
+    if (data.session) {
+        updateUI(data.user);
+        showMessage("Аккаунт успешно создан!");
+    } else {
+        showMessage(
+            "Аккаунт создан! Проверь почту и подтверди Email."
+        );
+    }
 });
+
+// Вход
+loginForm.addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const email = document.getElementById("loginEmail").value;
+    const password = document.getElementById("loginPassword").value;
+
+    showMessage("Входим в аккаунт...");
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+    });
+
+    if (error) {
+        showMessage("Ошибка входа: " + error.message);
+        return;
+    }
+
+    updateUI(data.user);
+    showMessage("Добро пожаловать в Connect!");
+});
+
+// Выход
+logoutButton.addEventListener("click", async function() {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+        showMessage("Ошибка выхода: " + error.message);
+        return;
+    }
+
+    updateUI(null);
+});
+
+// Проверка текущего аккаунта
+async function checkUser() {
+    const { data, error } = await supabase.auth.getUser();
+
+    if (error || !data.user) {
+        updateUI(null);
+    } else {
+        updateUI(data.user);
+    }
+}
+
+// Отслеживание авторизации
+supabase.auth.onAuthStateChange((event, session) => {
+    updateUI(session?.user ?? null);
+});
+
+checkUser();
