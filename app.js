@@ -6,6 +6,7 @@ const P = {
   home: '<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
   explore: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
   profile: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
+  admin: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
   heart: '<path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/>',
   chat: '<path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.5A8 8 0 1 1 21 12z"/>',
   moon: '<path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10z"/>',
@@ -14,12 +15,14 @@ const P = {
 const ic = (n, f) => `<svg class="i" viewBox="0 0 24 24" fill="${f ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-let S = { me: null, users: [], posts: [], follows: [] };
+let S = { me: null, users: [], posts: [], follows: [], totalPosts: 0 };
 let view = { name: 'home', uid: null }, cover = false, q = '', open = new Set(), mode = 'login';
 let pic = null, picURL = null, draft = '', avFile = null;
 
 const U = id => S.users.find(u => u.id === id) || { id, name: '?', handle: 'user', bio: '', hue: 0 };
 const me = () => U(S.me);
+const isAdmin = () => !!S.me && me().role === 'admin';
+const bdg = u => u.role === 'admin' ? '<span class="bdg" title="Администратор">Админ</span>' : '';
 const isF = id => S.follows.some(f => f.follower_id === S.me && f.following_id === id);
 const ago = t => { const m = Math.max(1, Math.round((Date.now() - t) / 6e4)); return m < 60 ? m + ' мин' : m < 1440 ? Math.round(m / 60) + ' ч' : Math.round(m / 1440) + ' дн'; };
 const av = (u, c = '') => `<span class="av ${c}" style="--h:${u.hue}">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc((u.name[0] || '?').toUpperCase())}</span>`;
@@ -49,34 +52,37 @@ async function upload(file, max) {
 }
 
 async function loadAll() {
-  const [u, p, l, c, f] = await Promise.all([
+  const [u, p, l, c, f, n] = await Promise.all([
     sb.from('profiles').select('*'),
     sb.from('posts').select('*').order('created_at', { ascending: false }).limit(100),
     sb.from('likes').select('post_id,user_id'),
     sb.from('comments').select('*').order('created_at'),
-    sb.from('follows').select('*')
+    sb.from('follows').select('*'),
+    sb.from('posts').select('id', { count: 'exact', head: true })
   ]);
   if (u.error || p.error) return toast('Не удалось загрузить данные. Проверьте настройки Supabase.');
   const likes = l.data || [], cms = c.data || [];
   S.users = u.data || [];
   S.follows = f.data || [];
+  S.totalPosts = n.count || (p.data || []).length;
+  S.totalLikes = likes.length; S.totalComments = cms.length;
   S.posts = (p.data || []).map(x => ({
     id: x.id, uid: x.user_id, t: new Date(x.created_at).getTime(), text: x.text, cover: x.cover, image: x.image,
     likes: likes.filter(k => k.post_id === x.id).map(k => k.user_id),
-    cm: cms.filter(k => k.post_id === x.id).map(k => ({ uid: k.user_id, t: new Date(k.created_at).getTime(), text: k.text }))
+    cm: cms.filter(k => k.post_id === x.id).map(k => ({ id: k.id, uid: k.user_id, t: new Date(k.created_at).getTime(), text: k.text }))
   }));
 }
 
 function post(p) {
-  const u = U(p.uid), liked = p.likes.includes(S.me), mine = p.uid === S.me;
+  const u = U(p.uid), liked = p.likes.includes(S.me), canDel = p.uid === S.me || isAdmin();
   const media = p.image ? `<img class="pimg" src="${esc(p.image)}" alt="" loading="lazy">` : p.cover != null ? `<div class="cover" style="--h:${p.cover}"></div>` : '';
   return `<article class="card post" data-id="${p.id}">
-    <header data-user="${u.id}">${av(u)}<div><b>${esc(u.name)}</b><span>@${esc(u.handle)} · ${ago(p.t)}</span></div></header>
+    <header data-user="${u.id}">${av(u)}<div><b>${esc(u.name)}${bdg(u)}</b><span>@${esc(u.handle)} · ${ago(p.t)}</span></div></header>
     <p>${rich(p.text)}</p>${media}
     <footer><button class="act like ${liked ? 'on' : ''}" data-act="like" aria-pressed="${liked}">${ic('heart', liked)}${p.likes.length}</button>
     <button class="act" data-act="cmt">${ic('chat')}${p.cm.length}</button>
-    ${mine ? `<button class="act del" data-act="del" aria-label="Удалить публикацию">${ic('trash')}</button>` : ''}</footer>
-    <div class="cm ${open.has(p.id) ? 'open' : ''}">${p.cm.map(c => { const a = U(c.uid); return `<div class="c">${av(a, 'sm')}<div><b>${esc(a.name)}</b><small>${ago(c.t)}</small><br>${esc(c.text)}</div></div>`; }).join('')}
+    ${canDel ? `<button class="act del" data-act="del" aria-label="Удалить публикацию">${ic('trash')}</button>` : ''}</footer>
+    <div class="cm ${open.has(p.id) ? 'open' : ''}">${p.cm.map(c => { const a = U(c.uid); return `<div class="c">${av(a, 'sm')}<div><b>${esc(a.name)}</b>${bdg(a)}<small>${ago(c.t)}</small><br>${esc(c.text)}</div>${c.id && (c.uid === S.me || isAdmin()) ? `<button class="cx" data-act="delc" data-cid="${c.id}" aria-label="Удалить комментарий">×</button>` : ''}</div>`; }).join('')}
     <div class="cf"><input placeholder="Напишите комментарий" maxlength="300"><button class="btn" data-act="send">Отправить</button></div></div></article>`;
 }
 const feed = list => list.length ? list.map(post).join('') : '<div class="card empty">Здесь пока пусто. Напишите первую публикацию!</div>';
@@ -93,30 +99,41 @@ function main() {
     ${feed(all.sort((a, b) => b.t - a.t))}`;
   }
   if (view.name === 'explore') return `<h2 class="t">Популярное</h2>${feed(all.sort((a, b) => b.likes.length + b.cm.length - a.likes.length - a.cm.length))}`;
+  if (view.name === 'admin') {
+    if (!isAdmin()) return '<div class="card empty">Нет доступа</div>';
+    const stats = [['Пользователи', S.users.length], ['Публикации', S.totalPosts], ['Комментарии', S.totalComments || 0], ['Лайки', S.totalLikes || 0]];
+    const users = [...S.users].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return `<h2 class="t">Админ-панель</h2>
+    <div class="stat">${stats.map(([l, n]) => `<div class="card"><b>${n}</b><span>${l}</span></div>`).join('')}</div>
+    <div class="card ulist"><h4>Пользователи</h4>${users.map(u => `<div class="sg">${av(u, 'sm')}<div data-user="${u.id}"><b>${esc(u.name)}</b>${bdg(u)}<br><small>@${esc(u.handle)} · ${S.posts.filter(p => p.uid === u.id).length} постов · с ${new Date(u.created_at).toLocaleDateString('ru-RU')}</small></div></div>`).join('')}</div>
+    <h2 class="t sub">Модерация</h2>${feed(all.sort((a, b) => b.t - a.t))}`;
+  }
   const u = U(view.uid), mine = u.id === S.me, fl = isF(u.id);
   const fc = S.follows.filter(f => f.following_id === u.id).length;
   const fg = S.follows.filter(f => f.follower_id === u.id).length;
   return `<div class="card"><div class="pcover" style="--h:${u.hue}"></div><div class="phead"><div class="rw">${av(u, 'lg')}
     ${mine ? '<div class="row"><button class="btn ghost" data-act="edit">Редактировать</button><button class="btn ghost" data-act="logout">Выйти</button></div>' : `<button class="btn ${fl ? 'ghost' : ''}" data-act="follow" data-id="${u.id}">${fl ? 'Вы подписаны' : 'Подписаться'}</button>`}</div>
-    <h2>${esc(u.name)}</h2><span class="mu">@${esc(u.handle)}</span><p style="margin-top:8px">${esc(u.bio || '')}</p>
+    <h2>${esc(u.name)}${bdg(u)}</h2><span class="mu">@${esc(u.handle)}</span><p style="margin-top:8px">${esc(u.bio || '')}</p>
     <div class="nums"><div><b>${S.posts.filter(p => p.uid === u.id).length}</b><span>постов</span></div><div><b>${fc}</b><span>подписчиков</span></div><div><b>${fg}</b><span>подписок</span></div></div></div></div>
     ${feed(S.posts.filter(p => p.uid === u.id).sort((a, b) => b.t - a.t))}`;
 }
 function chrome() {
   const m = me(), items = [['home', 'Главная'], ['explore', 'Популярное'], ['profile', 'Профиль']];
+  if (isAdmin()) items.push(['admin', 'Админ']);
   const nv = lbl => items.map(([k, l]) => `<button class="nv ${view.name === k && (k !== 'profile' || view.uid === S.me) ? 'on' : ''}" data-go="${k}" aria-label="${l}">${ic(k)}${lbl ? `<span>${l}</span>` : ''}</button>`).join('');
   $('#side').innerHTML = nv(1) + `<button class="btn" data-act="compose">Новая публикация</button>`;
   $('#bottom').innerHTML = nv(0);
   $('#meBtn').innerHTML = av(m);
   $('#themeBtn').innerHTML = ic('moon');
   const sug = S.users.filter(u => u.id !== S.me).slice(0, 4);
-  $('#rail').innerHTML = `<div class="card"><h4>Кого читать</h4>${sug.length ? sug.map(u => `<div class="sg">${av(u, 'sm')}<div data-user="${u.id}"><b>${esc(u.name)}</b><br><small>@${esc(u.handle)}</small></div><button class="fol ${isF(u.id) ? 'on' : ''}" data-act="follow" data-id="${u.id}">${isF(u.id) ? 'Читаю' : 'Читать'}</button></div>`).join('') : '<small class="mu">Пока здесь только вы. Пригласите друзей!</small>'}</div>
+  $('#rail').innerHTML = `<div class="card"><h4>Кого читать</h4>${sug.length ? sug.map(u => `<div class="sg">${av(u, 'sm')}<div data-user="${u.id}"><b>${esc(u.name)}</b>${bdg(u)}<br><small>@${esc(u.handle)}</small></div><button class="fol ${isF(u.id) ? 'on' : ''}" data-act="follow" data-id="${u.id}">${isF(u.id) ? 'Читаю' : 'Читать'}</button></div>`).join('') : '<small class="mu">Пока здесь только вы. Пригласите друзей!</small>'}</div>
   <div class="card"><h4>Сейчас обсуждают</h4>${[['#дизайн', 124], ['#стартап', 98], ['#фото', 76], ['#путешествия', 51]].map(([t, n]) => `<a class="tg"><b>${t}</b>${n} публикаций</a>`).join('')}</div>`;
 }
 function render() {
   const on = !!S.me;
   $('#landing').hidden = on; $('#app').hidden = !on;
   if (!on) return;
+  if (view.name === 'admin' && !isAdmin()) view = { name: 'home', uid: null };
   chrome();
   $('#main').innerHTML = main();
 }
@@ -176,6 +193,7 @@ function openEdit() {
   d.innerHTML = `<div class="sheet card"><button class="x" data-act="closeedit" aria-label="Закрыть">×</button><h2>Редактировать профиль</h2>
     <div class="ef"><div class="row">${av(m)}<label class="chip" id="eAvL">Сменить фото профиля<input id="eAv" type="file" accept="image/*" hidden></label></div>
     <input id="eName" maxlength="40" placeholder="Имя" value="${esc(m.name)}">
+    <div class="at"><span>@</span><input id="eHandle" maxlength="20" placeholder="ник" autocapitalize="none" autocomplete="off" value="${esc(m.handle)}"></div>
     <textarea id="eBio" rows="4" maxlength="160" placeholder="О себе">${esc(m.bio || '')}</textarea>
     <p class="err" id="eErr"></p><button class="btn lg" data-act="saveprofile">Сохранить</button></div></div>`;
   document.body.appendChild(d);
@@ -215,14 +233,17 @@ document.addEventListener('click', async e => {
   else if (act === 'edit') openEdit();
   else if (act === 'closeedit') closeEdit();
   else if (act === 'saveprofile') {
-    const name = $('#eName').value.trim(), bio = $('#eBio').value.trim();
-    if (name.length < 2) return $('#eErr').textContent = 'Имя должно содержать минимум 2 символа';
+    const name = $('#eName').value.trim(), bio = $('#eBio').value.trim(), eErr = $('#eErr');
+    const handle = $('#eHandle').value.trim().toLowerCase().replace(/^@/, '');
+    if (name.length < 2) return eErr.textContent = 'Имя должно содержать минимум 2 символа';
+    if (!/^[a-z0-9_]{3,20}$/.test(handle)) return eErr.textContent = 'Ник: 3–20 символов, только латинские буквы, цифры и _';
+    if (!isAdmin() && /admin|support|moderator|админ/.test(handle)) return eErr.textContent = 'Этот ник зарезервирован';
     t.disabled = true;
     let avatar = me().avatar || null;
     if (avFile) { const url = await upload(avFile, 400); if (!url) { t.disabled = false; return; } avatar = url; }
-    const r = await sb.from('profiles').update({ name, bio, avatar }).eq('id', S.me);
-    if (!ok(r)) { t.disabled = false; return; }
-    Object.assign(me(), { name, bio, avatar }); closeEdit(); render(); toast('Профиль сохранён');
+    const r = await sb.from('profiles').update({ name, handle, bio, avatar }).eq('id', S.me);
+    if (r.error) { eErr.textContent = r.error.code === '23505' ? 'Этот ник уже занят' : 'Ошибка: ' + r.error.message; t.disabled = false; return; }
+    Object.assign(me(), { name, handle, bio, avatar }); closeEdit(); render(); toast('Профиль сохранён');
   }
   else if (act === 'pick') $('#pic').click();
   else if (act === 'unpic') setPic(null);
@@ -230,7 +251,13 @@ document.addEventListener('click', async e => {
     if (!confirm('Удалить эту публикацию? Это нельзя отменить.')) return;
     const r = await sb.from('posts').delete().match({ id });
     if (!ok(r)) return;
-    S.posts = S.posts.filter(x => x.id !== id); render(); toast('Публикация удалена');
+    S.posts = S.posts.filter(x => x.id !== id); S.totalPosts = Math.max(0, S.totalPosts - 1); render(); toast('Публикация удалена');
+  }
+  else if (act === 'delc') {
+    if (!confirm('Удалить комментарий?')) return;
+    const r = await sb.from('comments').delete().eq('id', t.dataset.cid);
+    if (!ok(r)) return;
+    p.cm = p.cm.filter(c => c.id !== t.dataset.cid); refresh(id);
   }
   else if (act === 'like') {
     const i = p.likes.indexOf(S.me), had = i >= 0;
@@ -242,9 +269,9 @@ document.addEventListener('click', async e => {
   else if (act === 'send') {
     const v = card.querySelector('input').value.trim();
     if (!v) return toast('Напишите текст комментария');
-    const r = await sb.from('comments').insert({ post_id: id, user_id: S.me, text: v });
+    const r = await sb.from('comments').insert({ post_id: id, user_id: S.me, text: v }).select().single();
     if (!ok(r)) return;
-    p.cm.push({ uid: S.me, t: Date.now(), text: v }); open.add(id); refresh(id);
+    p.cm.push({ id: r.data.id, uid: S.me, t: Date.now(), text: v }); open.add(id); refresh(id);
   }
   else if (act === 'follow') {
     const fid = t.dataset.id, had = isF(fid);
@@ -264,7 +291,7 @@ document.addEventListener('click', async e => {
     const r = await sb.from('posts').insert({ user_id: S.me, text: v, cover: !pic && cover ? me().hue : null, image }).select().single();
     if (!ok(r)) { t.disabled = false; return; }
     S.posts.unshift({ id: r.data.id, uid: S.me, t: new Date(r.data.created_at).getTime(), text: v, cover: r.data.cover, image: r.data.image, likes: [], cm: [] });
-    cover = false; draft = ''; if (picURL) URL.revokeObjectURL(picURL); pic = picURL = null;
+    S.totalPosts++; cover = false; draft = ''; if (picURL) URL.revokeObjectURL(picURL); pic = picURL = null;
     render(); toast('Опубликовано');
   }
 });
@@ -273,7 +300,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.closest('.cf')) e.target.nextElementSibling.click();
   if (e.key === 'Enter' && e.target.closest('.fields')) submit();
 });
-$('#q').addEventListener('input', e => { q = e.target.value.trim().toLowerCase(); if (view.name === 'profile') view = { name: 'home', uid: null }; render(); });
+$('#q').addEventListener('input', e => { q = e.target.value.trim().toLowerCase(); if (view.name === 'profile' || view.name === 'admin') view = { name: 'home', uid: null }; render(); });
 
 try { const th = localStorage.getItem('connect_theme'); if (th) document.documentElement.dataset.theme = th; } catch (x) {}
 setMode('login');
