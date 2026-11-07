@@ -179,3 +179,25 @@ h2.sub{margin-top:8px}
  .mb{max-width:88%}
  .nv .dot{top:2px;right:14px}
 }
+
+.moderation-blurred {
+  filter: blur(18px);
+  user-select: none;
+  transition: filter 180ms ease;
+}
+
+.moderation-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 12px;
+  background: #202020;
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+}
+
+.moderation-warning[hidden] {
+  display: none;
+}
