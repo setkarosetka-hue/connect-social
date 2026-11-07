@@ -212,6 +212,23 @@ function main() {
     <div class="nums"><div><b>${S.posts.filter(p => p.uid === u.id).length}</b><span>постов</span></div><div><b>${fc}</b><span>подписчиков</span></div><div><b>${fg}</b><span>подписок</span></div></div></div></div>
     ${feed(S.posts.filter(p => p.uid === u.id).sort((a, b) => b.t - a.t))}`;
 }
+
+/* ---------- «Сейчас обсуждают»: реальные теги из публикаций ---------- */
+const plural = n => { const m = n % 100, d = n % 10; return m > 10 && m < 20 ? 'публикаций' : d === 1 ? 'публикация' : d >= 2 && d <= 4 ? 'публикации' : 'публикаций'; };
+function trending() {
+  const map = {};
+  S.posts.filter(p => (p.status || 'approved') === 'approved').forEach(p => {
+    new Set((p.text.toLowerCase().match(/#[\p{L}\d_]+/gu) || [])).forEach(tg => {
+      const e = map[tg] || (map[tg] = { tag: tg, n: 0, t: 0 });
+      e.n++; e.t = Math.max(e.t, p.t);
+    });
+  });
+  const list = Object.values(map).sort((a, b) => b.n - a.n || b.t - a.t).slice(0, 4);
+  return list.length
+    ? list.map(e => `<a class="tg" data-act="tag" data-tag="${esc(e.tag)}" style="cursor:pointer"><b>${esc(e.tag)}</b>${e.n} ${plural(e.n)}</a>`).join('')
+    : '<small class="mu">Пока нет тегов. Добавьте #тег в публикацию.</small>';
+}
+
 function chrome() {
   const m = me(), items = [['home', 'Главная'], ['explore', 'Популярное'], ['dm', 'Чаты'], ['profile', 'Профиль']];
   if (isAdmin()) items.push(['admin', 'Админ']);
@@ -223,7 +240,7 @@ function chrome() {
   $('#themeBtn').innerHTML = ic('moon');
   const sug = S.users.filter(u => u.id !== S.me).slice(0, 4);
   $('#rail').innerHTML = `<div class="card"><h4>Кого читать</h4>${sug.length ? sug.map(u => `<div class="sg">${av(u, 'sm')}<div data-user="${u.id}"><b>${esc(u.name)}</b>${bdg(u)}<br><small>@${esc(u.handle)}</small></div><button class="fol ${isF(u.id) ? 'on' : ''}" data-act="follow" data-id="${u.id}">${isF(u.id) ? 'Читаю' : 'Читать'}</button></div>`).join('') : '<small class="mu">Пока здесь только вы. Пригласите друзей!</small>'}</div>
-  <div class="card"><h4>Сейчас обсуждают</h4>${[['#дизайн', 124], ['#стартап', 98], ['#фото', 76], ['#путешествия', 51]].map(([t, n]) => `<a class="tg"><b>${t}</b>${n} публикаций</a>`).join('')}</div>`;
+  <div class="card"><h4>Сейчас обсуждают</h4>${trending()}</div>`;
 }
 function render() {
   const on = !!S.me;
@@ -374,6 +391,11 @@ document.addEventListener('click', async e => {
     const r = await sb.rpc('admin_set_role', { target: t.dataset.id, new_role: t.dataset.role });
     if (!ok(r)) return;
     U(t.dataset.id).role = t.dataset.role; render(); toast('Роль обновлена');
+  }
+  else if (act === 'tag') {
+    q = t.dataset.tag; $('#q').value = q;
+    if (!['home', 'explore'].includes(view.name)) view = { name: 'home', uid: null };
+    render(); window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   else if (act === 'del') {
     if (!confirm('Удалить эту публикацию? Это нельзя отменить.')) return;
