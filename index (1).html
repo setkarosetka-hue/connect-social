@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connect — общайтесь так, будто вы рядом!</title>
+<link rel="icon" type="image/png" href="connect-icon-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style id="boot">html{visibility:hidden}</style>
+<noscript><style>html{visibility:visible!important}</style></noscript>
+</head>
+<body>
+<section id="landing">
+  <nav class="nav wrap">
+    <a class="logo" href="#"><b>C</b>onnect</a>
+    <div class="row">
+      <button class="btn ghost" data-act="auth" data-mode="login">Войти</button>
+      <button class="btn" data-act="auth" data-mode="register">Создать аккаунт</button>
+    </div>
+  </nav>
+  <header class="hero wrap">
+    <div class="hero-t">
+      <h1>Общайтесь так, будто вы рядом</h1>
+      <p>Connect — тихая социальная сеть без шума: только люди, которые вам интересны, и истории, которые стоит прочитать.</p>
+      <div class="row">
+        <button class="btn lg" data-act="auth" data-mode="register">Присоединиться</button>
+        <button class="btn ghost lg" data-act="auth" data-mode="login">Войти</button>
+      </div>
+    </div>
+    <div class="hero-v" aria-hidden="true">
+      <article class="card post f1"><header><span class="av" style="--h:265">А</span><div><b>Алиса Морозова</b><span>@alisa · 5 мин</span></div></header><p>Закончила редизайн приложения. Меньше элементов — больше воздуха.</p><footer><button class="act like on" data-fake>♥ 128</button><span class="act">💬 14</span></footer></article>
+      <article class="card post f2"><header><span class="av" style="--h:200">Т</span><div><b>Тимур Каримов</b><span>@timur · 1 ч</span></div></header><p>Выложил свой первый open-source проект. Заходите в гости!</p><div class="cover" style="--h:200"></div><footer><button class="act like" data-fake>♥ 86</button><span class="act">💬 9</span></footer></article>
+    </div>
+  </header>
+  <section class="wrap feats">
+    <div><h3>Лента без хаоса</h3><p>Публикации людей, на которых вы подписаны, и никакой лишней рекламы.</p></div>
+    <div><h3>Живое общение</h3><p>Лайки и комментарии появляются мгновенно, а разговор остаётся в одном месте.</p></div>
+    <div><h3>Ваш профиль</h3><p>Расскажите о себе, собирайте подписчиков и показывайте лучшее.</p></div>
+  </section>
+  <footer class="wrap foot"><span class="logo"><b>C</b>onnect</span><span class="mu">© 2026 Connect. Сделано с заботой о людях.</span></footer>
+</section>
+
+<div id="app" hidden>
+  <header class="top">
+    <a class="logo" data-go="home"><b>C</b>onnect</a>
+    <label class="search"><input id="q" placeholder="Поиск людей и публикаций" autocomplete="off"></label>
+    <div class="row"><button class="ic" data-act="theme" aria-label="Сменить тему" id="themeBtn"></button><button class="meb" data-go="profile" id="meBtn" aria-label="Мой профиль"></button></div>
+  </header>
+  <div class="layout"><aside class="side" id="side"></aside><main id="main"></main><aside class="rail" id="rail"></aside></div>
+  <nav class="bottom" id="bottom"></nav>
+</div>
+
+<div class="modal" id="auth" hidden>
+  <div class="sheet card">
+    <button class="x" data-act="close" aria-label="Закрыть">×</button>
+    <h2 id="authT">Добро пожаловать</h2>
+    <div class="tabs"><button data-act="mode" data-mode="login">Вход</button><button data-act="mode" data-mode="register">Регистрация</button></div>
+    <div class="fields">
+      <input id="fName" placeholder="Ваше имя" autocomplete="name">
+      <input id="fMail" type="text" inputmode="tel" placeholder="Номер телефона, например +7 900 123-45-67" autocomplete="username">
+      <input id="fPass" type="password" placeholder="Пароль (от 6 символов)" autocomplete="current-password">
+      <p class="err" id="err"></p>
+      <button class="btn lg" data-act="submit" id="authBtn">Продолжить</button>
+    </div>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* Автообновление: при каждом открытии сайт сверяет файлы с сервером (304, если не менялись)
+   и всегда запускает свежую версию. Менять номера версий и чистить кэш больше не нужно. */
+(function () {
+  var boot = document.getElementById('boot');
+  var done = function () { if (boot) { boot.remove(); boot = null; } };
+  setTimeout(done, 6000);
+  var get = function (u) {
+    return fetch(u, { cache: 'no-cache' })
+      .then(function (r) { if (!r.ok) throw 0; return r.text(); })
+      .catch(function () { return null; });
+  };
+  var js = ['supabase.js', 'app.js', 'messenger.js', 'media-chat.js'];
+  var cj = get('style.css'), jj = js.map(get);
+  cj.then(function (t) {
+    if (t !== null) { var s = document.createElement('style'); s.textContent = t; document.head.appendChild(s); }
+    else { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'style.css'; document.head.appendChild(l); }
+  });
+  js.reduce(function (p, f, i) {
+    return p.then(function () { return jj[i]; }).then(function (t) {
+      if (t !== null) {
+        var s = document.createElement('script');
+        s.textContent = t + '\n//# sourceURL=' + f;
+        document.body.appendChild(s);
+        return;
+      }
+      return new Promise(function (res) {
+        var s = document.createElement('script');
+        s.src = f; s.onload = s.onerror = res;
+        document.body.appendChild(s);
+      });
+    });
+  }, cj).then(done, done);
+})();
+</script>
+</body>
+</html>
