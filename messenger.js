@@ -24,10 +24,24 @@ st.textContent = `
 .spre{border-radius:18px;padding:16px;background:linear-gradient(135deg,hsl(var(--h) 80% 55%),hsl(calc(var(--h) + 60) 85% 40%))}
 .spre textarea{background:none!important;border:0!important;color:#fff;text-align:center;font-size:20px;font-weight:600}
 .spre textarea::placeholder{color:rgba(255,255,255,.75)}
-.sw{width:28px;height:28px;border-radius:50%;background:hsl(var(--h) 80% 55%);flex:none}`;
+.sw{width:28px;height:28px;border-radius:50%;background:hsl(var(--h) 80% 55%);flex:none}
+.bdg{color:#fff!important;font-size:11px!important;font-weight:700}
+.bdg:not(.ban)::before{content:"✓";margin-right:3px}
+.bdg.cr{background:linear-gradient(135deg,#f59e0b,#ef4444)}
+.vf{display:inline-grid;place-items:center;width:16px;height:16px;margin-left:5px;border-radius:50%;background:#2b8cff;color:#fff!important;font-size:11px!important;font-weight:800;line-height:1;vertical-align:middle}
+#cvm .mb{animation:none;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;position:relative}
+#cvm .mb:last-child{animation:rise .25s both}
+.mb.sel{outline:2px solid var(--ac);outline-offset:2px}
+.mb.sel::after{content:"✓";position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:var(--ac);color:#fff;font-size:12px;display:grid;place-items:center}
+.mb.me.sel::after{left:auto;right:-8px}
+.selbar{display:flex;align-items:center;gap:6px;width:100%}.selbar b{flex:1}.selbar button{padding:6px 10px;border-radius:12px;font-weight:600}.selbar button:hover{background:var(--bg)}.selbar .danger{color:var(--hot)}
+.msov{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center}
+.msheet{width:100%;max-width:420px;margin:12px 12px calc(12px + env(safe-area-inset-bottom,0px));padding:8px;border-radius:20px;background:var(--cd);border:1px solid var(--bd);box-shadow:var(--sh);animation:rise .2s both}
+.msheet button{display:block;width:100%;text-align:left;padding:13px 14px;border-radius:12px;font-weight:600}.msheet button:hover{background:var(--bg)}.msheet .danger{color:var(--hot)}
+.fwl{max-height:50vh;overflow-y:auto;margin-top:12px}`;
 document.head.appendChild(st);
 
-const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false };
+const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false };
 const EMO = '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 😉 😍 🥰 😘 😋 😜 🤪 😎 🤩 🥳 😏 😒 😔 😢 😭 😤 😡 🤯 😱 🤔 🤗 🙄 😴 🤒 🥶 🥵 👍 👎 👏 🙌 🙏 💪 👋 ✌️ 🤞 👌 🤝 ❤️ 🧡 💛 💚 💙 💜 🖤 💔 🔥 ✨ 🎉 🎁 ⭐ 💯 ✅ ❌ 🌹 ☀️ 🌙 ☕ 🍕 🍔 🎵 📷 🚀 💡 🎮 ⚽ 🐱 🐶'.split(' ');
 const last = a => a[a.length - 1];
 const aiKey = () => 'connect_ai_' + S.me;
@@ -120,19 +134,24 @@ renderCList = function () {
 renderConv = function () {
   const box = $('#chat'); if (!box) return;
   const h = $('#ch'), body = $('#cvm'), cb = $('#cb');
-  if (!chatWith) { box.classList.remove('open'); h.innerHTML = ''; cb.hidden = true; body.innerHTML = '<div class="empty">Выберите чат или найдите человека, чтобы начать общение</div>'; return; }
+  if (!chatWith) { X.sel.clear(); box.classList.remove('open'); h.innerHTML = ''; cb.hidden = true; body.innerHTML = '<div class="empty">Выберите чат или найдите человека, чтобы начать общение</div>'; return; }
   box.classList.add('open');
   const ai = chatWith === 'ai', u = ai ? { name: 'Connect AI' } : U(chatWith), blocked = X.blocks.has(chatWith), tel = X.phones[chatWith];
-  h.innerHTML = `<button class="back" data-act="backch" aria-label="Назад">‹</button><span class="chu" ${ai ? '' : `data-user="${u.id}"`}>${ai ? '<span class="av sm" style="--h:265">✦</span>' : av(u, 'sm')}<div><b>${esc(u.name)}${ai ? '<span class="bdg">ИИ</span>' : bdg(u)}</b><small>${ai ? 'Помощник' : tel ? '📞 ' + esc(tel) : '@' + esc(u.handle)}</small></div></span>${ai ? '<button class="mbtn" data-act="aiclear" aria-label="Очистить">⟲</button>' : '<button class="mbtn" data-act="cmenu" aria-label="Меню">⋮</button>'}`;
-  const rows = ai ? X.ai.map(m => ({ me: m.role === 'user', text: m.text, t: m.t })) : thread(chatWith).filter(m => shown(m, chatWith)).map(m => ({ me: m.sender_id === S.me, text: m.text, t: m.created_at, read: m.read_at }));
-  body.innerHTML = (rows.length ? rows.map(r => `<div class="mb ${r.me ? 'me' : ''}"><p>${esc(r.text)}</p><small>${hhmm(r.t)}${r.me && !ai ? (r.read ? ' ✓✓' : ' ✓') : ''}</small></div>`).join('') : '<div class="empty">Сообщений пока нет. Напишите первым!</div>')
+  const rows = ai ? X.ai.map((m, i) => ({ id: 'a' + i, me: m.role === 'user', text: m.text, t: m.t })) : thread(chatWith).filter(m => shown(m, chatWith)).map(m => ({ id: m.id, me: m.sender_id === S.me, text: m.text, t: m.created_at, read: m.read_at }));
+  X.rows = Object.fromEntries(rows.map(r => [r.id, r]));
+  [...X.sel].forEach(i => { if (!X.rows[i]) X.sel.delete(i); });
+  h.innerHTML = X.sel.size
+    ? `<div class="selbar"><button data-act="selx" aria-label="Отмена">×</button><b>${X.sel.size}</b><button data-act="selcopy">Копировать</button><button data-act="selfwd">Переслать</button><button class="danger" data-act="seldel">Удалить</button></div>`
+    : `<button class="back" data-act="backch" aria-label="Назад">‹</button><span class="chu" ${ai ? '' : `data-user="${u.id}"`}>${ai ? '<span class="av sm" style="--h:265">✦</span>' : av(u, 'sm')}<div><b>${esc(u.name)}${ai ? '<span class="bdg">ИИ</span>' : bdg(u)}</b><small>${ai ? 'Помощник' : tel ? '📞 ' + esc(tel) : '@' + esc(u.handle)}</small></div></span>${ai ? '<button class="mbtn" data-act="aiclear" aria-label="Очистить">⟲</button>' : '<button class="mbtn" data-act="cmenu" aria-label="Меню">⋮</button>'}`;
+  const keep = X.keepScroll, top = body.scrollTop; X.keepScroll = false;
+  body.innerHTML = (rows.length ? rows.map(r => `<div class="mb ${r.me ? 'me' : ''} ${X.sel.has(r.id) ? 'sel' : ''}" data-mid="${r.id}"><p>${esc(r.text)}</p><small>${hhmm(r.t)}${r.me && !ai ? (r.read ? ' ✓✓' : ' ✓') : ''}</small></div>`).join('') : '<div class="empty">Сообщений пока нет. Напишите первым!</div>')
     + (X.typing && ai ? '<div class="mb"><p>печатает…</p></div>' : '') + (blocked ? '<div class="empty">Вы заблокировали этого пользователя</div>' : '');
   cb.hidden = blocked;
   if (!$('.emob', cb)) cb.insertAdjacentHTML('afterbegin', '<button class="emob" data-act="emoji" aria-label="Эмодзи">☺</button>');
-  body.scrollTop = body.scrollHeight;
+  body.scrollTop = keep ? top : body.scrollHeight;
 };
 const _open = openChat;
-openChat = function (id) { _open(id); if (id !== 'ai') loadPhones().then(() => { if (chatWith === id) renderConv(); }); };
+openChat = function (id) { X.sel.clear(); _open(id); if (id !== 'ai') loadPhones().then(() => { if (chatWith === id) renderConv(); }); };
 
 /* ---------- отправка и ИИ ---------- */
 async function aiSend() {
@@ -235,6 +254,149 @@ document.addEventListener('click', async e => {
     if (!ok(r)) { t.disabled = false; return; }
     X.statuses.push(r.data); $('#stM').remove(); render(); toast('Статус опубликован');
   }
+});
+
+/* ---------- лайк без перерисовки, фото и обложка ---------- */
+const _setPic = setPic;
+setPic = function (f) { if (f) cover = false; _setPic(f); };
+async function toggleLike(btn) {
+  if (btn.dataset.busy) return;
+  const id = btn.closest('.post').dataset.id, p = S.posts.find(x => x.id === id);
+  if (!p) return;
+  btn.dataset.busy = '1';
+  const had = p.likes.includes(S.me);
+  const flip = () => {
+    const i = p.likes.indexOf(S.me); i < 0 ? p.likes.push(S.me) : p.likes.splice(i, 1);
+    const on = p.likes.includes(S.me);
+    btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on); btn.innerHTML = ic('heart', on) + p.likes.length;
+  };
+  flip();
+  const r = had ? await sb.from('likes').delete().match({ post_id: id, user_id: S.me }) : await sb.from('likes').insert({ post_id: id, user_id: S.me });
+  if (r.error) { flip(); toast('Ошибка: ' + r.error.message); }
+  delete btn.dataset.busy;
+}
+document.addEventListener('click', e => {
+  const like = e.target.closest('[data-act="like"]'), cov = e.target.closest('[data-act="cover"]');
+  if (like) { e.stopImmediatePropagation(); toggleLike(like); }
+  else if (cov && pic) {
+    e.stopImmediatePropagation();
+    draft = ($('#txt') || {}).value || ''; if (picURL) URL.revokeObjectURL(picURL);
+    pic = picURL = null; cover = true; render();
+  }
+}, true);
+
+/* ---------- переходы между вкладками без двойной анимации ---------- */
+const dsig = () => [S.posts.map(p => p.id + ':' + p.likes.length + ':' + p.cm.length).join(), S.users.map(u => [u.id, u.name, u.handle, u.avatar, u.role, u.banned, u.verified].join()).join(), S.follows.length, S.msgs.length, X.statuses.length].join('|');
+go = function (name, uid) {
+  view = { name, uid: name === 'profile' ? (uid || S.me) : null };
+  render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  const before = dsig();
+  loadAll().then(() => {
+    if (!S.me) return;
+    if (view.name === 'dm') return refreshChat();
+    const t = $('#txt');
+    if (dsig() !== before && !(t && t.value)) render();
+  });
+};
+
+/* ---------- админ-панель: выдача галочки ---------- */
+const _render = render;
+render = function () {
+  _render();
+  if (view.name !== 'admin' || !isAdmin()) return;
+  document.querySelectorAll('.urow').forEach(row => {
+    const ua = $('.ua', row), el = row.querySelector('[data-user]');
+    const u = el && S.users.find(x => x.id === el.dataset.user);
+    if (ua && u) ua.insertAdjacentHTML('afterbegin', `<button class="mini" data-act="averify" data-id="${u.id}" data-flag="${!u.verified}">${u.verified ? 'Снять галочку' : 'Выдать галочку'}</button>`);
+  });
+};
+
+/* ---------- сообщения: выбор, копирование, пересылка, удаление ---------- */
+const selIds = () => [...X.sel];
+const picked = list => Object.keys(X.rows).filter(i => list.includes(i));
+const msgText = i => (X.rows[i] || {}).text || '';
+const closeSheet = () => { const d = $('#msov'); if (d) d.remove(); };
+function copyText(txt) {
+  const done = () => toast('Скопировано');
+  const fb = () => { const t = document.createElement('textarea'); t.value = txt; t.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); done(); } catch (e) { toast('Не удалось скопировать'); } t.remove(); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fb); else fb();
+}
+function toggleSel(i) { X.sel.has(i) ? X.sel.delete(i) : X.sel.add(i); X.keepScroll = true; renderConv(); }
+function sheet(i) {
+  closeSheet();
+  const r = X.rows[i]; if (!r) return;
+  const d = document.createElement('div'); d.className = 'msov'; d.id = 'msov';
+  d.innerHTML = `<div class="msheet"><button data-act="m-copy" data-id="${i}">Копировать</button><button data-act="m-fwd" data-id="${i}">Переслать</button>${navigator.share ? `<button data-act="m-share" data-id="${i}">Поделиться</button>` : ''}<button data-act="m-sel" data-id="${i}">Выбрать</button>${r.me ? `<button class="danger" data-act="m-del" data-id="${i}">Удалить</button>` : ''}</div>`;
+  document.body.appendChild(d);
+}
+async function delMsgs(list) {
+  const own = picked(list).filter(i => X.rows[i].me);
+  if (!own.length) return toast('Можно удалить только свои сообщения');
+  if (!confirm('Удалить сообщения: ' + own.length + '? Они исчезнут у обоих.')) return;
+  if (chatWith === 'ai') { const del = new Set(own.map(i => +i.slice(1))); X.ai = X.ai.filter((_, k) => !del.has(k)); saveAi(); }
+  else { if (!ok(await sb.from('messages').delete().in('id', own))) return; S.msgs = S.msgs.filter(m => !own.includes(m.id)); }
+  X.sel.clear(); refreshChat(); toast('Удалено');
+}
+function forward(list) {
+  const texts = picked(list).map(msgText).filter(Boolean);
+  if (!texts.length) return;
+  closeSheet(); const old = $('#fwM'); if (old) old.remove();
+  const d = document.createElement('div'); d.className = 'modal'; d.id = 'fwM'; d._texts = texts;
+  d.innerHTML = '<div class="sheet card"><button class="x" data-act="fwclose" aria-label="Закрыть">×</button><h2>Переслать</h2><div class="cs" style="padding:0"><input id="fwq" placeholder="Поиск людей" autocomplete="off"></div><div class="fwl" id="fwl"></div></div>';
+  document.body.appendChild(d); fwFill();
+}
+function fwFill() {
+  const s = (($('#fwq') || {}).value || '').trim().toLowerCase(), recent = dialogs().map(x => x.uid);
+  const us = S.users.filter(u => u.id !== S.me && !X.blocks.has(u.id) && (!s || (u.name + ' ' + u.handle).toLowerCase().includes(s)))
+    .sort((a, b) => (recent.includes(b.id) ? 1 : 0) - (recent.includes(a.id) ? 1 : 0));
+  $('#fwl').innerHTML = us.map(u => `<button class="ci" data-act="fwto" data-id="${u.id}">${av(u)}<div><b>${esc(u.name)}${bdg(u)}</b><span>@${esc(u.handle)}</span></div></button>`).join('') || '<div class="empty">Никого не найдено</div>';
+}
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-act]'); if (!t) return;
+  const a = t.dataset.act, id = t.dataset.id;
+  if (a === 'averify') {
+    const flag = t.dataset.flag === 'true';
+    if (!ok(await sb.rpc('admin_set_verified', { target: id, flag }))) return;
+    S.users.find(u => u.id === id).verified = flag; render(); toast(flag ? 'Галочка выдана' : 'Галочка снята');
+  }
+  else if (a === 'm-copy') { closeSheet(); copyText(msgText(id)); }
+  else if (a === 'm-fwd') forward([id]);
+  else if (a === 'm-share') { closeSheet(); navigator.share({ text: msgText(id) }).catch(() => {}); }
+  else if (a === 'm-sel') { closeSheet(); X.sel.add(id); X.keepScroll = true; renderConv(); }
+  else if (a === 'm-del') { closeSheet(); delMsgs([id]); }
+  else if (a === 'selx') { X.sel.clear(); X.keepScroll = true; renderConv(); }
+  else if (a === 'selcopy') { copyText(picked(selIds()).map(msgText).join('\n')); X.sel.clear(); X.keepScroll = true; renderConv(); }
+  else if (a === 'selfwd') forward(selIds());
+  else if (a === 'seldel') delMsgs(selIds());
+  else if (a === 'fwclose') $('#fwM').remove();
+  else if (a === 'fwto') {
+    const texts = $('#fwM')._texts;
+    for (const x of texts) {
+      const r = await sb.from('messages').insert({ sender_id: S.me, receiver_id: id, text: ('↪ ' + x).slice(0, 2000) }).select().single();
+      if (r.error) return toast('Не удалось переслать');
+      if (!S.msgs.some(m => m.id === r.data.id)) S.msgs.push(r.data);
+    }
+    $('#fwM').remove(); X.sel.clear(); refreshChat(); toast('Переслано');
+  }
+});
+document.addEventListener('input', e => { if (e.target.id === 'fwq') fwFill(); });
+
+let lp = 0, lpT = null, sx = 0, sy = 0;
+const mbOf = e => e.target.closest && e.target.closest('.mb[data-mid]');
+document.addEventListener('pointerdown', e => {
+  const m = mbOf(e); if (!m) return;
+  lp = 0; sx = e.clientX; sy = e.clientY; clearTimeout(lpT);
+  lpT = setTimeout(() => { lp = 1; if (navigator.vibrate) navigator.vibrate(15); X.sel.add(m.dataset.mid); X.keepScroll = true; renderConv(); }, 450);
+});
+document.addEventListener('pointermove', e => { if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 10) clearTimeout(lpT); });
+['pointerup', 'pointercancel'].forEach(n => document.addEventListener(n, () => clearTimeout(lpT)));
+document.addEventListener('scroll', () => clearTimeout(lpT), true);
+document.addEventListener('contextmenu', e => { if (mbOf(e)) e.preventDefault(); });
+document.addEventListener('click', e => {
+  if (e.target.id === 'msov') return closeSheet();
+  const m = mbOf(e); if (!m) return;
+  if (lp) { lp = 0; return; }
+  X.sel.size ? toggleSel(m.dataset.mid) : sheet(m.dataset.mid);
 });
 
 if (S.me) loadMore().then(() => render());
