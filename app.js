@@ -26,7 +26,7 @@ const rank = u => u.role === 'creator' ? 3 : u.role === 'admin' ? 2 : 1;
 const isAdmin = () => !!S.me && rank(me()) >= 2;
 const isCreator = () => !!S.me && me().role === 'creator';
 const canManage = t => t.id !== S.me && (isCreator() ? rank(t) < 3 : isAdmin() && rank(t) === 1);
-const bdg = u => u.role === 'creator' ? '<span class="bdg cr" title="Создатель">Создатель</span>' : u.role === 'admin' ? '<span class="bdg" title="Администратор">Админ</span>' : '';
+const bdg = u => (u.role === 'creator' ? '<span class="bdg cr" title="Создатель">Создатель</span>' : u.role === 'admin' ? '<span class="bdg" title="Администратор">Админ</span>' : '') + (u.verified ? '<span class="vf" title="Верифицирован">✓</span>' : '');
 const isF = id => S.follows.some(f => f.follower_id === S.me && f.following_id === id);
 const ago = t => { const m = Math.max(1, Math.round((Date.now() - t) / 6e4)); return m < 60 ? m + ' мин' : m < 1440 ? Math.round(m / 60) + ' ч' : Math.round(m / 1440) + ' дн'; };
 const hhmm = t => new Date(t).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
