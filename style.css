@@ -203,3 +203,4 @@ h2.sub{margin-top:8px}
 }
 .pcover{position:relative;overflow:hidden}
 .pcover img,.pcover video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.phead{position:relative;z-index:1}
