@@ -80,7 +80,7 @@
       .then(function (r) { if (!r.ok) throw 0; return r.text(); })
       .catch(function () { return null; });
   };
-  var js = ['supabase.js', 'app.js', 'messenger.js', 'media-chat.js', 'groups.js'];
+  var js = ['supabase.js', 'app.js', 'messenger.js', 'media-chat.js', 'replies.js'];
   var cj = get('style.css'), jj = js.map(get);
   cj.then(function (t) {
     if (t !== null) { var s = document.createElement('style'); s.textContent = t; document.head.appendChild(s); }
