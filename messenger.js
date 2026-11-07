@@ -38,10 +38,11 @@ st.textContent = `
 .msheet{width:100%;max-width:420px;margin:12px 12px calc(12px + env(safe-area-inset-bottom,0px));padding:8px;border-radius:20px;background:var(--cd);border:1px solid var(--bd);box-shadow:var(--sh);animation:rise .2s both}
 .msheet button{display:block;width:100%;text-align:left;padding:13px 14px;border-radius:12px;font-weight:600}.msheet button:hover{background:var(--bg)}.msheet .danger{color:var(--hot)}
 .fwl{max-height:50vh;overflow-y:auto;margin-top:12px}
-.slink{color:var(--ac);font-weight:600;text-decoration:none}.slink:hover{text-decoration:underline}`;
+.slink{color:var(--ac);font-weight:600;text-decoration:none}.slink:hover{text-decoration:underline}
+.mb .who{display:block;font-size:12px;font-weight:700;color:var(--ac);margin-bottom:2px}`;
 document.head.appendChild(st);
 
-const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false, sup: [], supSeen: {}, bans: {} };
+const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false, sup: [], supSeen: {}, bans: {}, groups: [], gm: [], gmsg: [], gSeen: {}, gpick: new Set() };
 const SUPPORT = 'helpingdev.connect@gmail.com';
 const mail = `<a class="slink" href="mailto:${SUPPORT}">${SUPPORT}</a>`;
 const EMO = '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 😉 😍 🥰 😘 😋 😜 🤪 😎 🤩 🥳 😏 😒 😔 😢 😭 😤 😡 🤯 😱 🤔 🤗 🙄 😴 🤒 🥶 🥵 👍 👎 👏 🙌 🙏 💪 👋 ✌️ 🤞 👌 🤝 ❤️ 🧡 💛 💚 💙 💜 🖤 💔 🔥 ✨ 🎉 🎁 ⭐ 💯 ✅ ❌ 🌹 ☀️ 🌙 ☕ 🍕 🍔 🎵 📷 🚀 💡 🎮 ⚽ 🐱 🐶'.split(' ');
@@ -74,6 +75,8 @@ async function loadMore() {
   await loadSup();
   const bn = await sb.from('bans').select('user_id,reason');
   X.bans = Object.fromEntries((bn.data || []).map(r => [r.user_id, r.reason || '']));
+  try { X.gSeen = JSON.parse(localStorage.getItem('connect_grp_' + session.user.id) || '{}'); } catch (e) { X.gSeen = {}; }
+  await loadGroups();
   try { X.ai = JSON.parse(localStorage.getItem('connect_ai_' + session.user.id) || '[]'); } catch (e) { X.ai = []; }
 }
 const _load = loadAll;
@@ -134,39 +137,42 @@ renderCList = function () {
   const row = (u, l, n) => `<button class="ci ${u.id === chatWith ? 'on' : ''}" data-act="opench" data-id="${u.id}">${u.id === 'ai' ? '<span class="av" style="--h:265">✦</span>' : u.icon ? '<span class="av" style="--h:200">' + u.icon + '</span>' : av(u)}<div><b>${esc(u.name)}${u.id === 'ai' ? '<span class="bdg">ИИ</span>' : bdg(u)}</b><span>${l ? (l.sender_id === S.me ? 'Вы: ' : '') + esc(l.text) : esc(u.sub || '@' + u.handle)}</span></div>${l ? `<small>${hhmm(l.created_at)}</small>` : ''}${n ? `<i class="dot" style="position:static">${n}</i>` : ''}</button>`;
   if (s) { el.innerHTML = S.users.filter(u => u.id !== S.me && (u.name + ' ' + u.handle).toLowerCase().includes(s)).map(u => row(u)).join('') || '<div class="empty">Никого не найдено</div>'; return; }
   const dl = dialogs(), inD = new Set(dl.map(d => d.uid)), cts = [...X.contacts].filter(id => !inD.has(id)).map(U);
-  el.innerHTML = supRows(row) + row({ id: 'ai', name: 'Connect AI', sub: 'Спросите что угодно' }) + dl.map(({ uid, last: l }) => row(U(uid), l, unreadFrom(uid))).join('') + (cts.length ? '<div class="sec">Контакты</div>' + cts.map(u => row(u)).join('') : '');
+  el.innerHTML = supRows(row) + row({ id: 'ai', name: 'Connect AI', sub: 'Спросите что угодно' }) + groupRows(row) + dl.map(({ uid, last: l }) => row(U(uid), l, unreadFrom(uid))).join('') + (cts.length ? '<div class="sec">Контакты</div>' + cts.map(u => row(u)).join('') : '');
 };
 
 renderConv = function () {
   const box = $('#chat'); if (!box) return;
   const h = $('#ch'), body = $('#cvm'), cb = $('#cb');
   if (!chatWith) { X.sel.clear(); box.classList.remove('open'); h.innerHTML = ''; cb.hidden = true; body.innerHTML = '<div class="empty">Выберите чат или найдите человека, чтобы начать общение</div>'; return; }
+  const bot = chatWith === 'ai', sup = isSup(chatWith), grp = isGrp(chatWith), staff = sup && isAdmin(), tid = sup ? supThread() : null, g = grp ? gOf(gid()) : null;
+  if (grp && !g) { chatWith = null; return renderConv(); }
   box.classList.add('open');
-  const bot = chatWith === 'ai', sup = isSup(chatWith), staff = sup && isAdmin(), tid = sup ? supThread() : null;
-  const u = bot ? { name: 'Connect AI' } : sup ? (staff ? U(tid) : { name: 'Техподдержка' }) : U(chatWith);
-  const blocked = !bot && !sup && X.blocks.has(chatWith), tel = X.phones[chatWith];
-  const rows = sup ? X.sup.filter(m => m.user_id === tid).map(m => ({ id: m.id, me: staff ? m.sender_id !== m.user_id : m.sender_id === S.me, text: m.text, t: m.created_at }))
+  const u = bot ? { name: 'Connect AI' } : grp ? { name: g.name } : sup ? (staff ? U(tid) : { name: 'Техподдержка' }) : U(chatWith);
+  const blocked = !bot && !sup && !grp && X.blocks.has(chatWith), tel = X.phones[chatWith];
+  const rows = grp ? gMsgs(g.id).map(m => ({ id: m.id, me: m.sender_id === S.me, text: m.text, t: m.created_at, who: m.sender_id === S.me ? '' : U(m.sender_id).name }))
+    : sup ? X.sup.filter(m => m.user_id === tid).map(m => ({ id: m.id, me: staff ? m.sender_id !== m.user_id : m.sender_id === S.me, text: m.text, t: m.created_at }))
     : bot ? X.ai.map((m, i) => ({ id: 'a' + i, me: m.role === 'user', text: m.text, t: m.t }))
     : thread(chatWith).filter(m => shown(m, chatWith)).map(m => ({ id: m.id, me: m.sender_id === S.me, text: m.text, t: m.created_at, read: m.read_at }));
   X.rows = Object.fromEntries(rows.map(r => [r.id, r]));
   [...X.sel].forEach(i => { if (!X.rows[i]) X.sel.delete(i); });
-  const avt = bot ? '<span class="av sm" style="--h:265">✦</span>' : sup && !staff ? '<span class="av sm" style="--h:200">🎧</span>' : av(u, 'sm');
-  const sub = bot ? 'Помощник' : sup ? (staff ? '@' + esc(u.handle) + ' · обращение' : 'Ответим как можно скорее') : tel ? '📞 ' + esc(tel) : '@' + esc(u.handle);
-  const tag = bot ? '<span class="bdg">ИИ</span>' : sup && !staff ? '' : bdg(u);
+  const avt = bot ? '<span class="av sm" style="--h:265">✦</span>' : grp ? '<span class="av sm" style="--h:200">👥</span>' : sup && !staff ? '<span class="av sm" style="--h:200">🎧</span>' : av(u, 'sm');
+  const sub = bot ? 'Помощник' : grp ? gMem(g.id).length + ' участников' : sup ? (staff ? '@' + esc(u.handle) + ' · обращение' : 'Ответим как можно скорее') : tel ? '📞 ' + esc(tel) : '@' + esc(u.handle);
+  const tag = bot ? '<span class="bdg">ИИ</span>' : grp || (sup && !staff) ? '' : bdg(u);
   const menu = bot ? '<button class="mbtn" data-act="aiclear" aria-label="Очистить">⟲</button>' : sup ? '' : '<button class="mbtn" data-act="cmenu" aria-label="Меню">⋮</button>';
   h.innerHTML = X.sel.size
     ? `<div class="selbar"><button data-act="selx" aria-label="Отмена">×</button><b>${X.sel.size}</b><button data-act="selcopy">Копировать</button><button data-act="selfwd">Переслать</button><button class="danger" data-act="seldel">Удалить</button></div>`
-    : `<button class="back" data-act="backch" aria-label="Назад">‹</button><span class="chu" ${bot || (sup && !staff) ? '' : `data-user="${u.id}"`}>${avt}<div><b>${esc(u.name)}${tag}</b><small>${sub}</small></div></span>${menu}`;
+    : `<button class="back" data-act="backch" aria-label="Назад">‹</button><span class="chu" ${bot || grp || (sup && !staff) ? '' : `data-user="${u.id}"`}>${avt}<div><b>${esc(u.name)}${tag}</b><small>${sub}</small></div></span>${menu}`;
   const keep = X.keepScroll, top = body.scrollTop; X.keepScroll = false;
-  body.innerHTML = (rows.length ? rows.map(r => `<div class="mb ${r.me ? 'me' : ''} ${X.sel.has(r.id) ? 'sel' : ''}" data-mid="${r.id}"><p>${esc(r.text)}</p><small>${hhmm(r.t)}${r.me && !bot && !sup ? (r.read ? ' ✓✓' : ' ✓') : ''}</small></div>`).join('') : `<div class="empty">${sup ? 'Опишите проблему или вопрос, мы ответим здесь.' : 'Сообщений пока нет. Напишите первым!'}</div>`)
+  body.innerHTML = (rows.length ? rows.map(r => `<div class="mb ${r.me ? 'me' : ''} ${X.sel.has(r.id) ? 'sel' : ''}" data-mid="${r.id}">${r.who ? `<b class="who">${esc(r.who)}</b>` : ''}<p>${esc(r.text)}</p><small>${hhmm(r.t)}${r.me && !bot && !sup && !grp ? (r.read ? ' ✓✓' : ' ✓') : ''}</small></div>`).join('') : `<div class="empty">${sup ? 'Опишите проблему или вопрос, мы ответим здесь.' : 'Сообщений пока нет. Напишите первым!'}</div>`)
     + (X.typing && bot ? '<div class="mb"><p>печатает…</p></div>' : '') + (blocked ? '<div class="empty">Вы заблокировали этого пользователя</div>' : '');
   cb.hidden = blocked;
   if (!$('.emob', cb)) cb.insertAdjacentHTML('afterbegin', '<button class="emob" data-act="emoji" aria-label="Эмодзи">☺</button>');
   body.scrollTop = keep ? top : body.scrollHeight;
   if (sup) { supSeen(); renderCList(); }
+  if (grp) { gSeen(); renderCList(); }
 };
 const _open = openChat;
-openChat = function (id) { X.sel.clear(); _open(id); if (id !== 'ai' && !isSup(id)) loadPhones().then(() => { if (chatWith === id) renderConv(); }); };
+openChat = function (id) { X.sel.clear(); _open(id); if (id !== 'ai' && !isSup(id) && !isGrp(id)) loadPhones().then(() => { if (chatWith === id) renderConv(); }); };
 
 /* ---------- отправка и ИИ ---------- */
 async function aiSend() {
@@ -189,6 +195,7 @@ const _send = sendMsg;
 sendMsg = function () {
   if (chatWith === 'ai') return aiSend();
   if (isSup(chatWith)) return supSend();
+  if (isGrp(chatWith)) return gSend();
   if (X.blocks.has(chatWith)) return toast('Сначала разблокируйте пользователя');
   return _send();
 };
@@ -198,6 +205,7 @@ function toggleMenu() {
   const old = $('.menu'); if (old) return old.remove();
   const id = chatWith, h = $('#ch');
   if (!id || id === 'ai' || !h) return;
+  if (isGrp(id)) return h.insertAdjacentHTML('beforeend', groupMenu());
   h.insertAdjacentHTML('beforeend', `<div class="menu"><button data-act="cm-contact">${X.contacts.has(id) ? 'Удалить из контактов' : 'Добавить в контакты'}</button><button data-act="cm-share">${X.shared.has(id) ? 'Скрыть мой номер' : 'Показать мой номер'}</button><button data-act="cm-block">${X.blocks.has(id) ? 'Разблокировать' : 'Заблокировать'}</button><button class="danger" data-act="cm-clear">Удалить чат</button></div>`);
 }
 function emoji(input, before) {
@@ -362,6 +370,7 @@ async function delMsgs(list) {
   if (!own.length) return toast('Можно удалить только свои сообщения');
   if (!confirm('Удалить сообщения: ' + own.length + '? Они исчезнут у обоих.')) return;
   if (chatWith === 'ai') { const del = new Set(own.map(i => +i.slice(1))); X.ai = X.ai.filter((_, k) => !del.has(k)); saveAi(); }
+  else if (isGrp(chatWith)) { if (!ok(await sb.from('group_messages').delete().in('id', own))) return; X.gmsg = X.gmsg.filter(m => !own.includes(m.id)); }
   else { if (!ok(await sb.from('messages').delete().in('id', own))) return; S.msgs = S.msgs.filter(m => !own.includes(m.id)); }
   X.sel.clear(); refreshChat(); toast('Удалено');
 }
@@ -405,6 +414,44 @@ document.addEventListener('click', async e => {
   else if (a === 'selfwd') forward(selIds());
   else if (a === 'seldel') delMsgs(selIds());
   else if (a === 'fwclose') $('#fwM').remove();
+  else if (a === 'gnew') gNew();
+  else if (a === 'gpick') { X.gpick.has(id) ? X.gpick.delete(id) : X.gpick.add(id); gFill(); }
+  else if (a === 'gclose') $('#gM').remove();
+  else if (a === 'gcreate') {
+    const name = $('#gName').value.trim();
+    if (!name) return toast('Введите название группы');
+    if (!X.gpick.size) return toast('Выберите хотя бы одного участника');
+    t.disabled = true;
+    const g = await sb.from('groups').insert({ name, owner_id: S.me }).select().single();
+    if (!ok(g)) { t.disabled = false; return; }
+    const rows = [S.me, ...X.gpick].map(uid => ({ group_id: g.data.id, user_id: uid, role: uid === S.me ? 'owner' : 'member' }));
+    if (!ok(await sb.from('group_members').insert(rows))) { t.disabled = false; return; }
+    X.groups.push(g.data); X.gm.push(...rows);
+    $('#gM').remove(); openChat('g:' + g.data.id); toast('Группа создана');
+  }
+  else if (a === 'g-members') gMemModal();
+  else if (a === 'gmclose') $('#gmM').remove();
+  else if (a === 'gadd' || a === 'gkick') {
+    const g = gOf(gid()), add = a === 'gadd';
+    const r = add ? await sb.from('group_members').insert({ group_id: g.id, user_id: id, role: 'member' }) : await sb.from('group_members').delete().match({ group_id: g.id, user_id: id });
+    if (!ok(r)) return;
+    X.gm = add ? [...X.gm, { group_id: g.id, user_id: id, role: 'member' }] : X.gm.filter(m => !(m.group_id === g.id && m.user_id === id));
+    gMemModal(); renderConv(); renderCList();
+  }
+  else if (a === 'g-rename') {
+    const g = gOf(gid()), name = (prompt('Новое название группы', g.name) || '').trim().slice(0, 40);
+    if (!name || name === g.name) return;
+    if (!ok(await sb.from('groups').update({ name }).eq('id', g.id))) return;
+    g.name = name; refreshChat();
+  }
+  else if (a === 'g-del' || a === 'g-leave') {
+    const g = gOf(gid()), del = a === 'g-del';
+    if (!confirm(del ? 'Удалить группу вместе со всеми сообщениями? Это нельзя отменить.' : 'Покинуть группу?')) return;
+    const r = del ? await sb.from('groups').delete().eq('id', g.id) : await sb.from('group_members').delete().match({ group_id: g.id, user_id: S.me });
+    if (!ok(r)) return;
+    X.groups = X.groups.filter(x => x.id !== g.id); X.gm = X.gm.filter(m => m.group_id !== g.id); X.gmsg = X.gmsg.filter(m => m.group_id !== g.id);
+    chatWith = null; refreshChat(); toast(del ? 'Группа удалена' : 'Вы покинули группу');
+  }
   else if (a === 'breason') $('#bnR').value = t.dataset.t;
   else if (a === 'bnclose') $('#bnM').remove();
   else if (a === 'bnok') {
@@ -476,12 +523,13 @@ chrome = function () {
   _chrome();
   const r = $('#rail');
   if (r) r.insertAdjacentHTML('beforeend', `<div class="card"><h4>Поддержка</h4><small class="mu">Вопросы и проблемы:<br>${mail}</small></div>`);
-  const n = isAdmin() ? [...new Set(X.sup.map(m => m.user_id))].reduce((c, t) => c + supUnread(t), 0) : supUnread(S.me);
+  let n = isAdmin() ? [...new Set(X.sup.map(m => m.user_id))].reduce((c, t) => c + supUnread(t), 0) : supUnread(S.me);
+  n += gUnreadAll();
   if (n) document.querySelectorAll('[data-go="dm"]').forEach(b => { if (!$('.dot', b)) b.insertAdjacentHTML('beforeend', `<i class="dot">${n}</i>`); });
 };
 const foot = $('.foot');
 if (foot) foot.insertAdjacentHTML('beforeend', `<span class="mu">Поддержка: ${mail}</span>`);
-document.addEventListener('click', e => { if (e.target.id === 'pwM' || e.target.id === 'bnM') e.target.remove(); });
+document.addEventListener('click', e => { if (['pwM', 'bnM', 'gM', 'gmM'].includes(e.target.id)) e.target.remove(); });
 
 /* ---------- причина блокировки ---------- */
 function banModal(id) {
@@ -531,6 +579,81 @@ setInterval(async () => {
   if (X.sup.filter(supIn).length > n) toast(isAdmin() ? 'Новое обращение в поддержку' : 'Новый ответ от техподдержки');
   chrome();
   if (view.name === 'dm') { renderCList(); if (isSup(chatWith)) renderConv(); }
+}, 12000);
+
+/* ---------- группы ---------- */
+const isGrp = id => typeof id === 'string' && id.startsWith('g:');
+const gid = () => chatWith.slice(2);
+const gOf = id => X.groups.find(g => g.id === id);
+const gMsgs = id => X.gmsg.filter(m => m.group_id === id);
+const gMem = id => X.gm.filter(m => m.group_id === id);
+const gUnread = id => { const seen = X.gSeen[id] || 0; return gMsgs(id).filter(m => m.sender_id !== S.me && new Date(m.created_at).getTime() > seen).length; };
+const gUnreadAll = () => X.groups.reduce((c, g) => c + gUnread(g.id), 0);
+async function loadGroups() {
+  const [g, m, t] = await Promise.all([
+    sb.from('groups').select('*'),
+    sb.from('group_members').select('*'),
+    sb.from('group_messages').select('*').order('created_at').limit(1000)
+  ]);
+  if (g.error || m.error || t.error) return;
+  X.groups = g.data || []; X.gm = m.data || []; X.gmsg = t.data || [];
+}
+function gSeen() {
+  if (!isGrp(chatWith)) return;
+  const l = last(gMsgs(gid()));
+  X.gSeen[gid()] = l ? new Date(l.created_at).getTime() : Date.now();
+  try { localStorage.setItem('connect_grp_' + S.me, JSON.stringify(X.gSeen)); } catch (e) {}
+}
+function groupRows(row) {
+  const key = g => { const l = last(gMsgs(g.id)); return l ? l.created_at : g.created_at; };
+  const gs = [...X.groups].sort((a, b) => key(b).localeCompare(key(a)));
+  return '<div class="sec">Группы</div><button class="ci" data-act="gnew"><span class="av" style="--h:150">＋</span><div><b>Новая группа</b><span>Создать общий чат</span></div></button>'
+    + gs.map(g => { const l = last(gMsgs(g.id)); return row({ id: 'g:' + g.id, name: g.name, sub: gMem(g.id).length + ' участников', icon: '👥' }, l && { ...l, text: (l.sender_id === S.me ? '' : U(l.sender_id).name.split(' ')[0] + ': ') + l.text }, gUnread(g.id)); }).join('');
+}
+function groupMenu() {
+  const g = gOf(gid()), own = g && g.owner_id === S.me;
+  return `<div class="menu"><button data-act="g-members">${own ? 'Участники и добавление' : 'Участники'}</button>${own ? '<button data-act="g-rename">Переименовать</button><button class="danger" data-act="g-del">Удалить группу</button>' : '<button class="danger" data-act="g-leave">Покинуть группу</button>'}</div>`;
+}
+async function gSend() {
+  const el = $('#cin'), v = el.value.trim();
+  if (!v) return;
+  el.value = ''; el.style.height = 'auto';
+  const r = await sb.from('group_messages').insert({ group_id: gid(), sender_id: S.me, text: v }).select().single();
+  if (r.error) { el.value = v; return toast('Не отправлено: ' + r.error.message); }
+  X.gmsg.push(r.data); refreshChat();
+}
+function gNew() {
+  X.gpick = new Set();
+  const old = $('#gM'); if (old) old.remove();
+  const d = document.createElement('div'); d.className = 'modal'; d.id = 'gM';
+  d.innerHTML = '<div class="sheet card"><button class="x" data-act="gclose" aria-label="Закрыть">×</button><h2>Новая группа</h2><div class="ef"><input id="gName" maxlength="40" placeholder="Название группы"><input id="gq" placeholder="Поиск участников" autocomplete="off"><div class="fwl" id="gl"></div><button class="btn lg" data-act="gcreate">Создать группу</button></div></div>';
+  document.body.appendChild(d); gFill(); $('#gName').focus();
+}
+function gFill() {
+  const s = (($('#gq') || {}).value || '').trim().toLowerCase();
+  $('#gl').innerHTML = S.users.filter(u => u.id !== S.me && (!s || (u.name + ' ' + u.handle).toLowerCase().includes(s))).map(u => `<button class="ci ${X.gpick.has(u.id) ? 'on' : ''}" data-act="gpick" data-id="${u.id}">${av(u)}<div><b>${esc(u.name)}</b><span>@${esc(u.handle)}</span></div><b>${X.gpick.has(u.id) ? '✓' : ''}</b></button>`).join('') || '<div class="empty">Никого не найдено</div>';
+}
+function gMemModal() {
+  const g = gOf(gid()); if (!g) return;
+  const own = g.owner_id === S.me;
+  let d = $('#gmM'); if (!d) { d = document.createElement('div'); d.className = 'modal'; d.id = 'gmM'; document.body.appendChild(d); }
+  d.innerHTML = `<div class="sheet card"><button class="x" data-act="gmclose" aria-label="Закрыть">×</button><h2>${esc(g.name)}</h2><div class="fwl">${gMem(g.id).map(m => { const u = U(m.user_id); return `<div class="sg">${av(u, 'sm')}<div><b>${esc(u.name)}</b>${u.id === g.owner_id ? '<br><small>владелец</small>' : ''}</div>${own && u.id !== S.me ? `<button class="mini danger" data-act="gkick" data-id="${u.id}">Убрать</button>` : ''}</div>`; }).join('')}</div>${own ? '<h4 style="margin:14px 0 8px">Добавить участников</h4><div class="cs" style="padding:0"><input id="gaq" placeholder="Поиск людей" autocomplete="off"></div><div class="fwl" id="gal"></div>' : ''}</div>`;
+  if (own) gaFill();
+}
+function gaFill() {
+  const g = gOf(gid()), s = (($('#gaq') || {}).value || '').trim().toLowerCase(), inG = new Set(gMem(g.id).map(m => m.user_id));
+  $('#gal').innerHTML = S.users.filter(u => !inG.has(u.id) && (!s || (u.name + ' ' + u.handle).toLowerCase().includes(s))).map(u => `<button class="ci" data-act="gadd" data-id="${u.id}">${av(u)}<div><b>${esc(u.name)}</b><span>@${esc(u.handle)}</span></div><b>＋</b></button>`).join('') || '<div class="empty">Больше некого добавить</div>';
+}
+document.addEventListener('input', e => { if (e.target.id === 'gq') gFill(); if (e.target.id === 'gaq') gaFill(); });
+setInterval(async () => {
+  if (!S.me || document.hidden) return;
+  const sig = () => X.groups.length + ':' + X.gm.length + ':' + X.gmsg.length, inc = () => X.gmsg.filter(m => m.sender_id !== S.me).length;
+  const before = sig(), n = inc();
+  await loadGroups();
+  if (sig() === before) return;
+  if (inc() > n) toast('Новое сообщение в группе');
+  chrome();
+  if (view.name === 'dm') { renderCList(); if (isGrp(chatWith)) renderConv(); }
 }, 12000);
 
 if (S.me) loadMore().then(() => render());
