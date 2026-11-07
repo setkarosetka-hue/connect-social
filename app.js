@@ -18,7 +18,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 
 let S = { me: null, users: [], posts: [], follows: [], msgs: [], totalPosts: 0, totalLikes: 0, totalComments: 0 };
 let view = { name: 'home', uid: null }, cover = false, q = '', open = new Set(), mode = 'login';
-let pic = null, picURL = null, draft = '', avFile = null, chatWith = null, ch = null, pollT = null;
+let pic = null, picURL = null, draft = '', avFile = null, bnFile = null, bnRemove = false, chatWith = null, ch = null, pollT = null;
 
 const U = id => S.users.find(u => u.id === id) || { id, name: '?', handle: 'user', bio: '', hue: 0 };
 const me = () => U(S.me);
@@ -55,6 +55,48 @@ async function upload(file, max) {
     return sb.storage.from('media').getPublicUrl(path).data.publicUrl;
   } catch (e) { toast(e.message); return null; }
 }
+
+/* ---------- баннеры профиля: фото или анимация до 5 секунд ---------- */
+const BN_MAX_SEC = 5.3;
+async function uploadRaw(file, name) {
+  try {
+    const ext = ((file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin').slice(0, 5);
+    const path = `${S.me}/${name}-${Date.now()}.${ext}`;
+    const { error } = await sb.storage.from('media').upload(path, file, { contentType: file.type });
+    if (error) { toast('Ошибка загрузки: ' + error.message); return null; }
+    return sb.storage.from('media').getPublicUrl(path).data.publicUrl;
+  } catch (e) { toast(e.message); return null; }
+}
+const videoSeconds = f => new Promise((res, rej) => {
+  const v = document.createElement('video');
+  v.preload = 'metadata';
+  v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); res(v.duration); };
+  v.onerror = () => rej(new Error('Не удалось прочитать видео'));
+  v.src = URL.createObjectURL(f);
+});
+const gifSeconds = async f => {
+  const b = new Uint8Array(await f.arrayBuffer());
+  let cs = 0;
+  for (let i = 0; i < b.length - 7; i++) if (b[i] === 0x21 && b[i + 1] === 0xF9 && b[i + 2] === 4) cs += (b[i + 4] | (b[i + 5] << 8));
+  return cs / 100;
+};
+async function pickBanner(f) {
+  const isV = f.type.startsWith('video/'), isG = f.type === 'image/gif';
+  if (!isV && !f.type.startsWith('image/')) return toast('Выберите фото, GIF или короткое видео');
+  if (isV && !/^video\/(mp4|webm)$/.test(f.type)) return toast('Видео: только MP4 или WebM');
+  if (f.size > (isV || isG ? 6 : 15) * 1048576) return toast(isV || isG ? 'Анимация должна быть не больше 6 МБ' : 'Фото должно быть не больше 15 МБ');
+  try {
+    if (isV && (await videoSeconds(f)) > BN_MAX_SEC) return toast('Анимация должна быть не длиннее 5 секунд');
+    if (isG && (await gifSeconds(f)) > BN_MAX_SEC) return toast('Анимация должна быть не длиннее 5 секунд');
+  } catch (e) { return toast(e.message); }
+  bnFile = f; bnRemove = false;
+  const l = $('#eBnL'); if (l) l.firstChild.textContent = 'Выбрано: ' + f.name.slice(0, 24);
+}
+const bannerHTML = u => u.banner
+  ? (u.banner_type === 'video'
+    ? `<video src="${esc(u.banner)}" autoplay muted loop playsinline></video>`
+    : `<img src="${esc(u.banner)}" alt="">`)
+  : '';
 
 async function loadAll() {
   const [u, p, l, c, f, n, m] = await Promise.all([
@@ -206,7 +248,7 @@ function main() {
   const u = U(view.uid), mine = u.id === S.me, fl = isF(u.id);
   const fc = S.follows.filter(f => f.following_id === u.id).length;
   const fg = S.follows.filter(f => f.follower_id === u.id).length;
-  return `<div class="card"><div class="pcover" style="--h:${u.hue}"></div><div class="phead"><div class="rw">${av(u, 'lg')}
+  return `<div class="card"><div class="pcover" style="--h:${u.hue}">${bannerHTML(u)}</div><div class="phead"><div class="rw">${av(u, 'lg')}
     ${mine ? '<div class="row"><button class="btn ghost" data-act="edit">Редактировать</button><button class="btn ghost" data-act="logout">Выйти</button></div>' : `<div class="row"><button class="btn ghost" data-act="dm" data-id="${u.id}">Написать</button><button class="btn ${fl ? 'ghost' : ''}" data-act="follow" data-id="${u.id}">${fl ? 'Вы подписаны' : 'Подписаться'}</button></div>`}</div>
     <h2>${esc(u.name)}${bdg(u)}</h2><span class="mu">@${esc(u.handle)}</span><p style="margin-top:8px">${esc(u.bio || '')}</p>
     <div class="nums"><div><b>${S.posts.filter(p => p.uid === u.id).length}</b><span>постов</span></div><div><b>${fc}</b><span>подписчиков</span></div><div><b>${fg}</b><span>подписок</span></div></div></div></div>
@@ -309,13 +351,14 @@ function refresh(id) {
   const el = $(`[data-id="${id}"]`), p = S.posts.find(x => x.id === id);
   if (el && p) { const d = document.createElement('div'); d.innerHTML = post(p); el.replaceWith(d.firstElementChild); }
 }
-const closeEdit = () => { const e = $('#editM'); if (e) e.remove(); avFile = null; };
+const closeEdit = () => { const e = $('#editM'); if (e) e.remove(); avFile = null; bnFile = null; bnRemove = false; };
 function openEdit() {
   const m = me(); closeEdit();
   const d = document.createElement('div');
   d.className = 'modal'; d.id = 'editM';
   d.innerHTML = `<div class="sheet card"><button class="x" data-act="closeedit" aria-label="Закрыть">×</button><h2>Редактировать профиль</h2>
     <div class="ef"><div class="row">${av(m)}<label class="chip" id="eAvL">Сменить фото профиля<input id="eAv" type="file" accept="image/*" hidden></label></div>
+    <div class="row" style="flex-wrap:wrap;gap:8px"><label class="chip" id="eBnL">Баннер: фото или анимация до 5 сек<input id="eBn" type="file" accept="image/*,video/mp4,video/webm" hidden></label>${m.banner ? '<button type="button" class="chip" data-act="bnrm">Убрать баннер</button>' : ''}</div>
     <input id="eName" maxlength="40" placeholder="Имя" value="${esc(m.name)}">
     <div class="at"><span>@</span><input id="eHandle" maxlength="20" placeholder="ник" autocapitalize="none" autocomplete="off" value="${esc(m.handle)}"></div>
     <textarea id="eBio" rows="4" maxlength="160" placeholder="О себе">${esc(m.bio || '')}</textarea>
@@ -332,6 +375,7 @@ function setPic(file) {
 document.addEventListener('change', e => {
   const f = e.target.files && e.target.files[0];
   if (!f) return;
+  if (e.target.id === 'eBn') return pickBanner(f);
   if (!f.type.startsWith('image/')) return toast('Выберите файл с изображением');
   if (e.target.id === 'pic') setPic(f);
   if (e.target.id === 'eAv') { avFile = f; $('#eAvL').firstChild.textContent = 'Выбрано: ' + f.name.slice(0, 24); }
@@ -356,6 +400,7 @@ document.addEventListener('click', async e => {
   else if (act === 'logout') { stopLive(); await sb.auth.signOut(); S.me = null; S.msgs = []; chatWith = null; render(); toast('Вы вышли из аккаунта'); }
   else if (act === 'edit') openEdit();
   else if (act === 'closeedit') closeEdit();
+  else if (act === 'bnrm') { bnRemove = true; bnFile = null; t.textContent = 'Баннер будет удалён после сохранения'; t.disabled = true; }
   else if (act === 'saveprofile') {
     const name = $('#eName').value.trim(), bio = $('#eBio').value.trim(), eErr = $('#eErr');
     const handle = $('#eHandle').value.trim().toLowerCase().replace(/^@/, '');
@@ -365,9 +410,16 @@ document.addEventListener('click', async e => {
     t.disabled = true;
     let avatar = me().avatar || null;
     if (avFile) { const url = await upload(avFile, 400); if (!url) { t.disabled = false; return; } avatar = url; }
-    const r = await sb.from('profiles').update({ name, handle, bio, avatar }).eq('id', S.me);
+    const upd = { name, handle, bio, avatar };
+    if (bnFile) {
+      const isV = bnFile.type.startsWith('video/'), isG = bnFile.type === 'image/gif';
+      const url = isV || isG ? await uploadRaw(bnFile, 'banner') : await upload(bnFile, 1600);
+      if (!url) { t.disabled = false; return; }
+      upd.banner = url; upd.banner_type = isV ? 'video' : 'image';
+    } else if (bnRemove) { upd.banner = null; upd.banner_type = null; }
+    const r = await sb.from('profiles').update(upd).eq('id', S.me);
     if (r.error) { eErr.textContent = r.error.code === '23505' ? 'Этот ник уже занят' : 'Ошибка: ' + r.error.message; t.disabled = false; return; }
-    Object.assign(me(), { name, handle, bio, avatar }); closeEdit(); render(); toast('Профиль сохранён');
+    Object.assign(me(), upd); closeEdit(); render(); toast('Профиль сохранён');
   }
   else if (act === 'pick') $('#pic').click();
   else if (act === 'unpic') setPic(null);
