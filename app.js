@@ -1,6 +1,13 @@
 'use strict';
 const sb = window.connectSupabase;
 
+/* стили баннера профиля: подключены прямо из JS, чтобы не зависеть от style.css */
+(() => {
+  const st = document.createElement('style');
+  st.textContent = '.pcover{position:relative;overflow:hidden;z-index:0}.pcover img,.pcover video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}.phead{position:relative;z-index:2}';
+  document.head.appendChild(st);
+})();
+
 const $ = (s, r = document) => r.querySelector(s);
 const P = {
   home: '<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
