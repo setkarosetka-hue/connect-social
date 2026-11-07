@@ -7,7 +7,8 @@
 <link rel="icon" type="image/png" href="connect-icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=4">
+<style id="boot">html{visibility:hidden}</style>
+<noscript><style>html{visibility:visible!important}</style></noscript>
 </head>
 <body>
 <section id="landing">
@@ -67,9 +68,40 @@
 <div id="toast" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="supabase.js?v=4"></script>
-<script src="app.js?v=4"></script>
-<script src="messenger.js?v=4"></script>
-<script src="media-chat.js?v=1"></script>
+<script>
+/* Автообновление: при каждом открытии сайт сверяет файлы с сервером (304, если не менялись)
+   и всегда запускает свежую версию. Менять номера версий и чистить кэш больше не нужно. */
+(function () {
+  var boot = document.getElementById('boot');
+  var done = function () { if (boot) { boot.remove(); boot = null; } };
+  setTimeout(done, 6000);
+  var get = function (u) {
+    return fetch(u, { cache: 'no-cache' })
+      .then(function (r) { if (!r.ok) throw 0; return r.text(); })
+      .catch(function () { return null; });
+  };
+  var js = ['supabase.js', 'app.js', 'messenger.js', 'media-chat.js', 'groups.js'];
+  var cj = get('style.css'), jj = js.map(get);
+  cj.then(function (t) {
+    if (t !== null) { var s = document.createElement('style'); s.textContent = t; document.head.appendChild(s); }
+    else { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'style.css'; document.head.appendChild(l); }
+  });
+  js.reduce(function (p, f, i) {
+    return p.then(function () { return jj[i]; }).then(function (t) {
+      if (t !== null) {
+        var s = document.createElement('script');
+        s.textContent = t + '\n//# sourceURL=' + f;
+        document.body.appendChild(s);
+        return;
+      }
+      return new Promise(function (res) {
+        var s = document.createElement('script');
+        s.src = f; s.onload = s.onerror = res;
+        document.body.appendChild(s);
+      });
+    });
+  }, cj).then(done, done);
+})();
+</script>
 </body>
 </html>

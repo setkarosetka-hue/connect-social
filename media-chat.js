@@ -35,6 +35,11 @@ async function sendMedia(f) {
   toast('Отправка…');
   const url = isV || isG ? await chatRaw(f) : await upload(f, 1600);
   if (!url) return;
+  const payload = { text: (cap || (isV ? LABELS[1] : LABELS[0])).slice(0, 2000), media_url: url, media_type: isV ? 'video' : 'image' };
+  if (window.CX && CX.sendPayload) {
+    if (await CX.sendPayload(payload) && el) { el.value = ''; el.style.height = 'auto'; }
+    return;
+  }
   const r = await sb.from('messages').insert({
     sender_id: S.me, receiver_id: id,
     text: (cap || (isV ? LABELS[1] : LABELS[0])).slice(0, 2000),
