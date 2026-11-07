@@ -41,7 +41,7 @@ st.textContent = `
 .slink{color:var(--ac);font-weight:600;text-decoration:none}.slink:hover{text-decoration:underline}`;
 document.head.appendChild(st);
 
-const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false, sup: [], supSeen: {} };
+const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false, sup: [], supSeen: {}, bans: {} };
 const SUPPORT = 'helpingdev.connect@gmail.com';
 const mail = `<a class="slink" href="mailto:${SUPPORT}">${SUPPORT}</a>`;
 const EMO = '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 😉 😍 🥰 😘 😋 😜 🤪 😎 🤩 🥳 😏 😒 😔 😢 😭 😤 😡 🤯 😱 🤔 🤗 🙄 😴 🤒 🥶 🥵 👍 👎 👏 🙌 🙏 💪 👋 ✌️ 🤞 👌 🤝 ❤️ 🧡 💛 💚 💙 💜 🖤 💔 🔥 ✨ 🎉 🎁 ⭐ 💯 ✅ ❌ 🌹 ☀️ 🌙 ☕ 🍕 🍔 🎵 📷 🚀 💡 🎮 ⚽ 🐱 🐶'.split(' ');
@@ -72,6 +72,8 @@ async function loadMore() {
   X.statuses = s.data || [];
   try { X.supSeen = JSON.parse(localStorage.getItem('connect_sup_' + session.user.id) || '{}'); } catch (e) { X.supSeen = {}; }
   await loadSup();
+  const bn = await sb.from('bans').select('user_id,reason');
+  X.bans = Object.fromEntries((bn.data || []).map(r => [r.user_id, r.reason || '']));
   try { X.ai = JSON.parse(localStorage.getItem('connect_ai_' + session.user.id) || '[]'); } catch (e) { X.ai = []; }
 }
 const _load = loadAll;
@@ -290,8 +292,9 @@ async function toggleLike(btn) {
   delete btn.dataset.busy;
 }
 document.addEventListener('click', e => {
-  const like = e.target.closest('[data-act="like"]'), cov = e.target.closest('[data-act="cover"]');
-  if (like) { e.stopImmediatePropagation(); toggleLike(like); }
+  const like = e.target.closest('[data-act="like"]'), cov = e.target.closest('[data-act="cover"]'), ban = e.target.closest('[data-act="aban"]');
+  if (ban && ban.dataset.flag === 'true') { e.stopImmediatePropagation(); banModal(ban.dataset.id); }
+  else if (like) { e.stopImmediatePropagation(); toggleLike(like); }
   else if (cov && pic) {
     e.stopImmediatePropagation();
     draft = ($('#txt') || {}).value || ''; if (picURL) URL.revokeObjectURL(picURL);
@@ -319,13 +322,18 @@ render = function () {
   _render();
   if (S.me && me().banned) {
     const c = $('#main .card');
-    if (c && !$('.slink', c)) c.insertAdjacentHTML('beforeend', `<p class="mu" style="margin-top:14px">Если это ошибка, напишите в поддержку: ${mail}</p>`);
+    if (c && !$('.slink', c)) {
+      const why = X.bans[S.me], btn = $('button', c);
+      if (why && btn) btn.insertAdjacentHTML('beforebegin', `<p style="margin:0 0 18px"><b>Причина:</b> ${esc(why)}</p>`);
+      c.insertAdjacentHTML('beforeend', `<p class="mu" style="margin-top:14px">Если это ошибка, напишите в поддержку: ${mail}</p>`);
+    }
     return;
   }
   if (view.name !== 'admin' || !isAdmin()) return;
   document.querySelectorAll('.urow').forEach(row => {
     const ua = $('.ua', row), el = row.querySelector('[data-user]');
     const u = el && S.users.find(x => x.id === el.dataset.user);
+    if (u && u.banned && X.bans[u.id]) el.insertAdjacentHTML('beforeend', `<br><small>Причина бана: ${esc(X.bans[u.id])}</small>`);
     if (ua && u) ua.insertAdjacentHTML('afterbegin', `<button class="mini" data-act="averify" data-id="${u.id}" data-flag="${!u.verified}">${u.verified ? 'Снять галочку' : 'Выдать галочку'}</button><button class="mini" data-act="apwd" data-id="${u.id}">Сбросить пароль</button>`);
   });
 };
@@ -397,6 +405,16 @@ document.addEventListener('click', async e => {
   else if (a === 'selfwd') forward(selIds());
   else if (a === 'seldel') delMsgs(selIds());
   else if (a === 'fwclose') $('#fwM').remove();
+  else if (a === 'breason') $('#bnR').value = t.dataset.t;
+  else if (a === 'bnclose') $('#bnM').remove();
+  else if (a === 'bnok') {
+    const bid = $('#bnM').dataset.id, why = $('#bnR').value.trim();
+    t.disabled = true;
+    const r = await sb.rpc('admin_set_banned', { target: bid, flag: true, why });
+    t.disabled = false;
+    if (!ok(r)) return;
+    S.users.find(x => x.id === bid).banned = true; X.bans[bid] = why; $('#bnM').remove(); render(); toast('Пользователь заблокирован');
+  }
   else if (a === 'pwd') pwdModal();
   else if (a === 'pwclose') $('#pwM').remove();
   else if (a === 'pwsave') {
@@ -463,7 +481,15 @@ chrome = function () {
 };
 const foot = $('.foot');
 if (foot) foot.insertAdjacentHTML('beforeend', `<span class="mu">Поддержка: ${mail}</span>`);
-document.addEventListener('click', e => { if (e.target.id === 'pwM') e.target.remove(); });
+document.addEventListener('click', e => { if (e.target.id === 'pwM' || e.target.id === 'bnM') e.target.remove(); });
+
+/* ---------- причина блокировки ---------- */
+function banModal(id) {
+  const u = S.users.find(x => x.id === id), old = $('#bnM'); if (old) old.remove();
+  const d = document.createElement('div'); d.className = 'modal'; d.id = 'bnM'; d.dataset.id = id;
+  d.innerHTML = `<div class="sheet card"><button class="x" data-act="bnclose" aria-label="Закрыть">×</button><h2>Заблокировать</h2><p class="mu" style="margin-bottom:12px">${esc(u.name)} увидит причину на экране блокировки.</p><div class="ef"><div class="row" style="flex-wrap:wrap">${['Спам', 'Оскорбления', 'Мошенничество', 'Нарушение правил'].map(t => `<button class="chip" type="button" data-act="breason" data-t="${t}">${t}</button>`).join('')}</div><textarea id="bnR" rows="3" maxlength="300" placeholder="Причина (необязательно)"></textarea><button class="btn lg" data-act="bnok">Заблокировать</button></div></div>`;
+  document.body.appendChild(d); $('#bnR').focus();
+}
 
 /* ---------- чат техподдержки ---------- */
 const isSup = id => typeof id === 'string' && (id === 'support' || id.startsWith('support:'));
