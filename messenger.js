@@ -26,7 +26,6 @@ st.textContent = `
 .spre textarea::placeholder{color:rgba(255,255,255,.75)}
 .sw{width:28px;height:28px;border-radius:50%;background:hsl(var(--h) 80% 55%);flex:none}
 .bdg{color:#fff!important;font-size:11px!important;font-weight:700}
-.bdg:not(.ban)::before{content:"✓";margin-right:3px}
 .bdg.cr{background:linear-gradient(135deg,#f59e0b,#ef4444)}
 .vf{display:inline-grid;place-items:center;width:16px;height:16px;margin-left:5px;border-radius:50%;background:#2b8cff;color:#fff!important;font-size:11px!important;font-weight:800;line-height:1;vertical-align:middle}
 #cvm .mb{animation:none;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;position:relative}
@@ -38,10 +37,13 @@ st.textContent = `
 .msov{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center}
 .msheet{width:100%;max-width:420px;margin:12px 12px calc(12px + env(safe-area-inset-bottom,0px));padding:8px;border-radius:20px;background:var(--cd);border:1px solid var(--bd);box-shadow:var(--sh);animation:rise .2s both}
 .msheet button{display:block;width:100%;text-align:left;padding:13px 14px;border-radius:12px;font-weight:600}.msheet button:hover{background:var(--bg)}.msheet .danger{color:var(--hot)}
-.fwl{max-height:50vh;overflow-y:auto;margin-top:12px}`;
+.fwl{max-height:50vh;overflow-y:auto;margin-top:12px}
+.slink{color:var(--ac);font-weight:600;text-decoration:none}.slink:hover{text-decoration:underline}`;
 document.head.appendChild(st);
 
 const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false };
+const SUPPORT = 'helpingdev.connect@gmail.com';
+const mail = `<a class="slink" href="mailto:${SUPPORT}">${SUPPORT}</a>`;
 const EMO = '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 😉 😍 🥰 😘 😋 😜 🤪 😎 🤩 🥳 😏 😒 😔 😢 😭 😤 😡 🤯 😱 🤔 🤗 🙄 😴 🤒 🥶 🥵 👍 👎 👏 🙌 🙏 💪 👋 ✌️ 🤞 👌 🤝 ❤️ 🧡 💛 💚 💙 💜 🖤 💔 🔥 ✨ 🎉 🎁 ⭐ 💯 ✅ ❌ 🌹 ☀️ 🌙 ☕ 🍕 🍔 🎵 📷 🚀 💡 🎮 ⚽ 🐱 🐶'.split(' ');
 const last = a => a[a.length - 1];
 const aiKey = () => 'connect_ai_' + S.me;
@@ -303,6 +305,11 @@ go = function (name, uid) {
 const _render = render;
 render = function () {
   _render();
+  if (S.me && me().banned) {
+    const c = $('#main .card');
+    if (c && !$('.slink', c)) c.insertAdjacentHTML('beforeend', `<p class="mu" style="margin-top:14px">Если это ошибка, напишите в поддержку: ${mail}</p>`);
+    return;
+  }
   if (view.name !== 'admin' || !isAdmin()) return;
   document.querySelectorAll('.urow').forEach(row => {
     const ua = $('.ua', row), el = row.querySelector('[data-user]');
@@ -369,6 +376,18 @@ document.addEventListener('click', async e => {
   else if (a === 'selfwd') forward(selIds());
   else if (a === 'seldel') delMsgs(selIds());
   else if (a === 'fwclose') $('#fwM').remove();
+  else if (a === 'pwd') pwdModal();
+  else if (a === 'pwclose') $('#pwM').remove();
+  else if (a === 'pwsave') {
+    const p1 = $('#pw1').value, p2 = $('#pw2').value, err = $('#pwE');
+    if (p1.length < 6) return err.textContent = 'Пароль должен содержать минимум 6 символов';
+    if (p1 !== p2) return err.textContent = 'Пароли не совпадают';
+    t.disabled = true;
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    t.disabled = false;
+    if (error) return err.textContent = /same|different/i.test(error.message) ? 'Новый пароль должен отличаться от текущего' : 'Ошибка: ' + error.message;
+    $('#pwM').remove(); toast('Пароль изменён');
+  }
   else if (a === 'fwto') {
     const texts = $('#fwM')._texts;
     for (const x of texts) {
@@ -398,6 +417,30 @@ document.addEventListener('click', e => {
   if (lp) { lp = 0; return; }
   X.sel.size ? toggleSel(m.dataset.mid) : sheet(m.dataset.mid);
 });
+
+/* ---------- смена пароля и поддержка ---------- */
+function pwdModal() {
+  const old = $('#pwM'); if (old) old.remove();
+  const d = document.createElement('div'); d.className = 'modal'; d.id = 'pwM';
+  d.innerHTML = '<div class="sheet card"><button class="x" data-act="pwclose" aria-label="Закрыть">×</button><h2>Сменить пароль</h2><div class="ef"><input id="pw1" type="password" placeholder="Новый пароль (от 6 символов)" autocomplete="new-password"><input id="pw2" type="password" placeholder="Повторите пароль" autocomplete="new-password"><p class="err" id="pwE"></p><button class="btn lg" data-act="pwsave">Сохранить пароль</button></div></div>';
+  document.body.appendChild(d); $('#pw1').focus();
+}
+const _edit = openEdit;
+openEdit = function () {
+  _edit();
+  const b = $('#eBio'), e = $('#eErr');
+  if (b) b.insertAdjacentHTML('afterend', '<button class="chip" type="button" data-act="pwd" style="align-self:flex-start">Сменить пароль</button>');
+  if (e) e.insertAdjacentHTML('afterend', `<p class="mu" style="font-size:13px">Поддержка: ${mail}</p>`);
+};
+const _chrome = chrome;
+chrome = function () {
+  _chrome();
+  const r = $('#rail');
+  if (r) r.insertAdjacentHTML('beforeend', `<div class="card"><h4>Поддержка</h4><small class="mu">Вопросы и проблемы:<br>${mail}</small></div>`);
+};
+const foot = $('.foot');
+if (foot) foot.insertAdjacentHTML('beforeend', `<span class="mu">Поддержка: ${mail}</span>`);
+document.addEventListener('click', e => { if (e.target.id === 'pwM') e.target.remove(); });
 
 if (S.me) loadMore().then(() => render());
 })();
