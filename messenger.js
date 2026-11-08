@@ -40,6 +40,15 @@ st.textContent = `
 .fwl{max-height:50vh;overflow-y:auto;margin-top:12px}
 .slink{color:var(--ac);font-weight:600;text-decoration:none}.slink:hover{text-decoration:underline}
 .mb .who{display:block;font-size:12px;font-weight:700;color:var(--ac);margin-bottom:2px}
+.micb{font-size:22px;padding:4px 8px;border-radius:50%}.micb:hover{background:var(--bg)}
+.vbar{display:flex;align-items:center;gap:10px;padding:10px;border-top:1px solid var(--bd)}
+.rec{flex:1;display:flex;align-items:center;gap:8px;font-weight:700}.rec i{width:10px;height:10px;border-radius:50%;background:var(--hot);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+.vm{display:flex;align-items:center;gap:10px;min-width:190px}
+.vp{width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;flex:none;font-size:13px}
+.mb.me .vp{background:#fff;color:var(--ac)}
+.vw{flex:1;height:4px;border-radius:2px;background:rgba(127,127,160,.35);overflow:hidden}.vw i{display:block;height:100%;width:0;background:var(--ac)}
+.mb.me .vw i{background:#fff}
 .fsec{border:1px solid var(--bd);border-radius:16px;margin-bottom:10px;overflow:hidden;transition:border-color .2s,background .2s}
 .fsec.over{border-color:var(--ac);background:rgba(109,94,252,.08)}
 .fh{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;background:var(--bg)}
@@ -147,7 +156,7 @@ dialogs = () => _dialogs().filter(({ uid, last: l }) => shown(l, uid));
 renderCList = function () {
   const el = $('#cl'); if (!el) return;
   const s = (($('#cs') || {}).value || '').trim().toLowerCase();
-  const row = (u, l, n) => `<button class="ci ${u.id === chatWith ? 'on' : ''}" data-act="opench" data-id="${u.id}">${u.id === 'ai' ? '<span class="av" style="--h:265">✦</span>' : u.icon ? '<span class="av" style="--h:200">' + u.icon + '</span>' : av(u)}<div><b>${esc(u.name)}${u.id === 'ai' ? '<span class="bdg">ИИ</span>' : bdg(u)}</b><span>${l ? (l.sender_id === S.me ? 'Вы: ' : '') + esc(l.text) : esc(u.sub || '@' + u.handle)}</span></div>${l ? `<small>${hhmm(l.created_at)}</small>` : ''}${n ? `<i class="dot" style="position:static">${n}</i>` : ''}</button>`;
+  const row = (u, l, n) => `<button class="ci ${u.id === chatWith ? 'on' : ''}" data-act="opench" data-id="${u.id}">${u.id === 'ai' ? '<span class="av" style="--h:265">✦</span>' : u.icon ? '<span class="av" style="--h:200">' + u.icon + '</span>' : av(u)}<div><b>${esc(u.name)}${u.id === 'ai' ? '<span class="bdg">ИИ</span>' : bdg(u)}</b><span>${l ? (l.sender_id === S.me ? 'Вы: ' : '') + esc(pv(l.text)) : esc(u.sub || '@' + u.handle)}</span></div>${l ? `<small>${hhmm(l.created_at)}</small>` : ''}${n ? `<i class="dot" style="position:static">${n}</i>` : ''}</button>`;
   if (s) { setList(el, S.users.filter(u => u.id !== S.me && (u.name + ' ' + u.handle).toLowerCase().includes(s)).map(u => row(u)).join('') || '<div class="empty">Никого не найдено</div>'); return; }
   const dl = dialogs(), inD = new Set(dl.map(d => d.uid)), cts = [...X.contacts].filter(id => !inD.has(id)).map(U);
   setList(el, supRows(row) + row({ id: 'ai', name: 'Connect AI', sub: 'Спросите что угодно' }) + groupRows(row) + dl.map(({ uid, last: l }) => row(U(uid), l, unreadFrom(uid))).join('') + (cts.length ? '<div class="sec">Контакты</div>' + cts.map(u => row(u)).join('') : ''));
@@ -155,6 +164,7 @@ renderCList = function () {
 
 renderConv = function () {
   const box = $('#chat'); if (!box) return;
+  if (rec && rec.chat !== chatWith) vStop(false);
   const h = $('#ch'), body = $('#cvm'), cb = $('#cb');
   if (!chatWith) { X.sel.clear(); box.classList.remove('open'); h.innerHTML = ''; cb.hidden = true; body.innerHTML = '<div class="empty">Выберите чат или найдите человека, чтобы начать общение</div>'; return; }
   const bot = chatWith === 'ai', sup = isSup(chatWith), grp = isGrp(chatWith), staff = sup && isAdmin(), tk = sup ? tkOf() : null, g = grp ? gOf(gid()) : null;
@@ -179,12 +189,15 @@ renderConv = function () {
   if (h._h !== hh) { h._h = hh; h.innerHTML = hh; }
   const keep = X.keepScroll, top = body.scrollTop; X.keepScroll = false;
   const note = closed ? `<div class="empty">${staff ? 'Обращение закрыто. Откройте его снова в меню ⋮, чтобы ответить.' : 'Обращение закрыто. Если вопрос остался, создайте новое обращение.'}</div>` : blocked ? '<div class="empty">Вы заблокировали этого пользователя</div>' : '';
-  const bh = (rows.length ? rows.map(r => `<div class="mb ${r.me ? 'me' : ''} ${X.sel.has(r.id) ? 'sel' : ''}" data-mid="${r.id}">${r.who ? `<b class="who">${esc(r.who)}</b>` : ''}<p>${esc(r.text)}</p><small>${hhmm(r.t)}${r.me && !bot && !sup && !grp ? (r.read ? ' ✓✓' : ' ✓') : ''}</small></div>`).join('') : '<div class="empty">Сообщений пока нет. Напишите первым!</div>')
+  const bh = (rows.length ? rows.map(r => `<div class="mb ${r.me ? 'me' : ''} ${X.sel.has(r.id) ? 'sel' : ''}" data-mid="${r.id}">${r.who ? `<b class="who">${esc(r.who)}</b>` : ''}${voiceHtml(r.text) || `<p>${esc(r.text)}</p>`}<small>${hhmm(r.t)}${r.me && !bot && !sup && !grp ? (r.read ? ' ✓✓' : ' ✓') : ''}</small></div>`).join('') : '<div class="empty">Сообщений пока нет. Напишите первым!</div>')
     + (X.typing && bot ? '<div class="mb"><p>печатает…</p></div>' : '') + note;
   const changed = body._h !== bh;
   if (changed) { body._h = bh; body.innerHTML = bh; }
-  cb.hidden = blocked || closed;
+  cb.hidden = blocked || closed || !!rec;
   if (!$('.emob', cb)) cb.insertAdjacentHTML('afterbegin', '<button class="emob" data-act="emoji" aria-label="Эмодзи">☺</button>');
+  let mic = $('.micb', cb);
+  if (!mic) { cb.querySelector('[data-act="dsend"]').insertAdjacentHTML('beforebegin', '<button class="micb" data-act="vrec" aria-label="Голосовое сообщение">🎤</button>'); mic = $('.micb', cb); }
+  mic.hidden = bot;
   if (changed) body.scrollTop = keep ? top : body.scrollHeight;
   if (sup) { supSeen(); renderCList(); }
   if (grp) { gSeen(); renderCList(); }
@@ -332,6 +345,7 @@ document.addEventListener('click', e => {
 /* ---------- переходы между вкладками без двойной анимации ---------- */
 const dsig = () => [S.posts.map(p => p.id + ':' + p.likes.length + ':' + p.cm.length).join(), S.users.map(u => [u.id, u.name, u.handle, u.avatar, u.role, u.banned, u.verified].join()).join(), S.follows.length, S.msgs.length, X.statuses.length, X.gmsg.length, X.groups.length, X.sup.length, X.tix.length].join('|');
 go = function (name, uid) {
+  if (rec) vStop(false);
   view = { name, uid: name === 'profile' ? (uid || S.me) : null };
   render(); window.scrollTo({ top: 0, behavior: 'smooth' });
   const before = dsig();
@@ -373,7 +387,7 @@ render = function () {
 /* ---------- сообщения: выбор, копирование, пересылка, удаление ---------- */
 const selIds = () => [...X.sel];
 const picked = list => Object.keys(X.rows).filter(i => list.includes(i));
-const msgText = i => (X.rows[i] || {}).text || '';
+const msgText = i => pv((X.rows[i] || {}).text || '');
 const closeSheet = () => { const d = $('#msov'); if (d) d.remove(); };
 function copyText(txt) {
   const done = () => toast('Скопировано');
@@ -399,7 +413,7 @@ async function delMsgs(list) {
   X.sel.clear(); refreshChat(); toast('Удалено');
 }
 function forward(list) {
-  const texts = picked(list).map(msgText).filter(Boolean);
+  const texts = picked(list).map(i => (X.rows[i] || {}).text).filter(Boolean);
   if (!texts.length) return;
   closeSheet(); const old = $('#fwM'); if (old) old.remove();
   const d = document.createElement('div'); d.className = 'modal'; d.id = 'fwM'; d._texts = texts;
@@ -438,6 +452,10 @@ document.addEventListener('click', async e => {
   else if (a === 'selfwd') forward(selIds());
   else if (a === 'seldel') delMsgs(selIds());
   else if (a === 'fwclose') $('#fwM').remove();
+  else if (a === 'vrec') vStart();
+  else if (a === 'vcancel') vStop(false);
+  else if (a === 'vsend') vStop(true);
+  else if (a === 'vplay') vPlay(t.dataset.url);
   else if (a === 'fnew') {
     const name = (prompt('Название папки') || '').trim().slice(0, 40);
     if (!name) return;
@@ -556,7 +574,7 @@ document.addEventListener('click', async e => {
   else if (a === 'fwto') {
     const texts = $('#fwM')._texts;
     for (const x of texts) {
-      const r = await sb.from('messages').insert({ sender_id: S.me, receiver_id: id, text: ('↪ ' + x).slice(0, 2000) }).select().single();
+      const r = await sb.from('messages').insert({ sender_id: S.me, receiver_id: id, text: (voiceOf(x) ? x : '↪ ' + x).slice(0, 2000) }).select().single();
       if (r.error) return toast('Не удалось переслать');
       if (!S.msgs.some(m => m.id === r.data.id)) S.msgs.push(r.data);
     }
@@ -568,7 +586,7 @@ document.addEventListener('input', e => { if (e.target.id === 'fwq') fwFill(); }
 let lp = 0, lpT = null, sx = 0, sy = 0;
 const mbOf = e => e.target.closest && e.target.closest('.mb[data-mid]');
 document.addEventListener('pointerdown', e => {
-  const m = mbOf(e); if (!m) return;
+  const m = mbOf(e); if (!m || e.target.closest('.vp')) return;
   lp = 0; sx = e.clientX; sy = e.clientY; clearTimeout(lpT);
   lpT = setTimeout(() => { lp = 1; if (navigator.vibrate) navigator.vibrate(15); X.sel.add(m.dataset.mid); X.keepScroll = true; renderConv(); }, 450);
 });
@@ -578,7 +596,7 @@ document.addEventListener('scroll', () => clearTimeout(lpT), true);
 document.addEventListener('contextmenu', e => { if (mbOf(e)) e.preventDefault(); });
 document.addEventListener('click', e => {
   if (e.target.id === 'msov') return closeSheet();
-  const m = mbOf(e); if (!m) return;
+  const m = mbOf(e); if (!m || e.target.closest('.vp')) return;
   if (lp) { lp = 0; return; }
   X.sel.size ? toggleSel(m.dataset.mid) : sheet(m.dataset.mid);
 });
@@ -708,7 +726,7 @@ function groupRows(row) {
   const key = g => { const l = last(gMsgs(g.id)); return l ? l.created_at : g.created_at; };
   const gs = [...X.groups].sort((a, b) => key(b).localeCompare(key(a)));
   return '<div class="sec">Чаты</div><button class="ci" data-act="gnew"><span class="av" style="--h:150">＋</span><div><b>Новая группа</b><span>Создать общий чат</span></div></button>'
-    + gs.map(g => { const l = last(gMsgs(g.id)); return row({ id: 'g:' + g.id, name: g.name, sub: gMem(g.id).length + ' участников', icon: '👥' }, l && { ...l, text: (l.sender_id === S.me ? '' : U(l.sender_id).name.split(' ')[0] + ': ') + l.text }, gUnread(g.id)); }).join('');
+    + gs.map(g => { const l = last(gMsgs(g.id)); return row({ id: 'g:' + g.id, name: g.name, sub: gMem(g.id).length + ' участников', icon: '👥' }, l && { ...l, text: (l.sender_id === S.me ? '' : U(l.sender_id).name.split(' ')[0] + ': ') + pv(l.text) }, gUnread(g.id)); }).join('');
 }
 function groupMenu() {
   const g = gOf(gid()), own = g && g.owner_id === S.me;
@@ -786,6 +804,79 @@ function auModal(id) {
   const d = document.createElement('div'); d.className = 'modal'; d.id = 'auM';
   d.innerHTML = `<div class="sheet card"><button class="x" data-act="aumclose" aria-label="Закрыть">×</button><div class="row" style="margin-bottom:6px;padding-right:28px">${av(u)}<div style="min-width:0"><b>${esc(u.name)}</b>${bdg(u)}<br><small class="mu">@${esc(u.handle)}</small></div></div><p class="mu" style="font-size:13px">${esc(st)}</p><div class="msheet" style="margin:12px 0 0;padding:0;border:0;box-shadow:none;background:none;animation:none;max-width:none">${items.join('')}</div></div>`;
   document.body.appendChild(d);
+}
+
+/* ---------- голосовые сообщения ---------- */
+const VRE = /^🎤voice\|(\d+)\|(https?:\/\/\S+)$/;
+const voiceOf = t => { const m = VRE.exec(t || ''); return m ? { dur: +m[1], url: m[2] } : null; };
+const pv = t => voiceOf(t) ? '🎤 Голосовое сообщение' : t;
+const fmt = n => Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0');
+const voiceHtml = t => { const v = voiceOf(t); return v ? `<div class="vm"><button class="vp" data-act="vplay" data-url="${esc(v.url)}" aria-label="Воспроизвести"><span>▶</span></button><div class="vw"><i></i></div><span>${fmt(v.dur)}</span></div>` : ''; };
+let rec = null, au = null, auUrl = '';
+function vPaint() {
+  document.querySelectorAll('.vp').forEach(b => {
+    const cur = b.dataset.url === auUrl && au, on = cur && !au.paused, w = b.parentElement.querySelector('.vw i');
+    b.firstElementChild.textContent = on ? '❚❚' : '▶';
+    if (w) w.style.width = cur && au.duration ? (au.currentTime / au.duration * 100) + '%' : '0%';
+  });
+}
+function vPlay(url) {
+  if (au && auUrl === url) { au.paused ? au.play() : au.pause(); return; }
+  if (au) au.pause();
+  au = new Audio(url); auUrl = url;
+  au.ontimeupdate = au.onplay = au.onpause = vPaint;
+  au.onended = () => { auUrl = ''; vPaint(); };
+  au.play().catch(() => toast('Не удалось воспроизвести'));
+}
+async function vStart() {
+  if (rec && !$('#vbar')) vStop(false);
+  if (rec) return;
+  if (!navigator.mediaDevices || !window.MediaRecorder) return toast('Ваш браузер не поддерживает запись голоса');
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch (e) { return toast('Нет доступа к микрофону. Разрешите его в настройках браузера.'); }
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+  const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined), chunks = [];
+  rec = { mr, stream, chunks, t0: Date.now(), mime: mr.mimeType || mime, chat: chatWith, send: false, tick: null };
+  mr.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  mr.onstop = vDone;
+  mr.start();
+  const cb = $('#cb'); cb.hidden = true;
+  const old = $('#vbar'); if (old) old.remove();
+  cb.insertAdjacentHTML('beforebegin', '<div class="vbar" id="vbar"><button class="mini danger" data-act="vcancel">Отмена</button><span class="rec"><i></i><b id="vt">0:00</b></span><button class="btn" data-act="vsend">Отправить</button></div>');
+  rec.tick = setInterval(() => {
+    const n = Math.floor((Date.now() - rec.t0) / 1000), el = $('#vt');
+    if (el) el.textContent = fmt(n);
+    if (n >= 120) vStop(true);
+  }, 250);
+}
+function vStop(send) {
+  if (!rec) return;
+  rec.send = send; clearInterval(rec.tick);
+  if (rec.mr.state !== 'inactive') rec.mr.stop(); else vDone();
+}
+async function vDone() {
+  const r = rec; if (!r) return;
+  rec = null; clearInterval(r.tick);
+  r.stream.getTracks().forEach(t => t.stop());
+  const bar = $('#vbar'); if (bar) bar.remove();
+  const after = () => { if (r.chat === chatWith) renderConv(); };
+  if (!r.send) return after();
+  if (r.chat !== chatWith) return toast('Запись отменена: вы перешли в другой чат');
+  const dur = Math.round((Date.now() - r.t0) / 1000);
+  if (dur < 1) { toast('Слишком короткое сообщение'); return after(); }
+  const blob = new Blob(r.chunks, { type: r.mime || 'audio/webm' });
+  if (blob.size > 5e6) { toast('Сообщение слишком длинное'); return after(); }
+  toast('Отправляю…');
+  const ext = /mp4/.test(r.mime) ? 'm4a' : /ogg/.test(r.mime) ? 'ogg' : 'webm';
+  const path = S.me + '/v-' + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random().toString(36).slice(2)) + '.' + ext;
+  const up = await sb.storage.from('media').upload(path, blob, { contentType: (r.mime || 'audio/webm').split(';')[0] });
+  if (up.error) { toast('Ошибка загрузки: ' + up.error.message); return after(); }
+  const el = $('#cin'), draft = el ? el.value : '';
+  if (!el) return;
+  el.value = '🎤voice|' + dur + '|' + sb.storage.from('media').getPublicUrl(path).data.publicUrl;
+  await sendMsg();
+  el.value = draft;
+  after();
 }
 
 /* ---------- без лишних перерисовок ---------- */
