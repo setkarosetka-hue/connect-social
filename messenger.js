@@ -40,11 +40,20 @@ st.textContent = `
 .fwl{max-height:50vh;overflow-y:auto;margin-top:12px}
 .slink{color:var(--ac);font-weight:600;text-decoration:none}.slink:hover{text-decoration:underline}
 .mb .who{display:block;font-size:12px;font-weight:700;color:var(--ac);margin-bottom:2px}
+.fsec{border:1px solid var(--bd);border-radius:16px;margin-bottom:10px;overflow:hidden;transition:border-color .2s,background .2s}
+.fsec.over{border-color:var(--ac);background:rgba(109,94,252,.08)}
+.fh{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;background:var(--bg)}
+.fh .car{transition:transform .2s;color:var(--mu)}.fsec.closed .car{transform:rotate(-90deg)}
+.fh b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fh small{color:var(--mu)}
+.fx{display:flex;gap:2px}.fx button{padding:4px 8px;border-radius:10px;color:var(--mu)}.fx button:hover{background:var(--cd);color:var(--tx)}
+.fb{padding:10px 14px 0}.fsec.closed .fb{display:none}#fl.searching .fsec.closed .fb{display:block}
+.fe{color:var(--mu);font-size:13px;padding-bottom:10px}
+.urow.drag{opacity:.4}.frow{margin:0 0 12px}
 .au{cursor:pointer;border-radius:14px;padding:8px;margin:0 -8px 4px;transition:background .2s}.au:hover{background:var(--bg)}
 .aq{width:100%;padding:11px 16px;border-radius:999px;border:1px solid var(--bd);background:var(--bg);outline:0;margin-bottom:14px}.aq:focus{border-color:var(--ac)}`;
 document.head.appendChild(st);
 
-const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false, sup: [], supSeen: {}, bans: {}, aq: '', tix: [], groups: [], gm: [], gmsg: [], gSeen: {}, gpick: new Set() };
+const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false, sup: [], supSeen: {}, bans: {}, folders: [], folderOf: {}, fclosed: {}, aq: '', tix: [], groups: [], gm: [], gmsg: [], gSeen: {}, gpick: new Set() };
 const SUPPORT = 'helpingdev.connect@gmail.com';
 const mail = `<a class="slink" href="mailto:${SUPPORT}">${SUPPORT}</a>`;
 const EMO = '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 😉 😍 🥰 😘 😋 😜 🤪 😎 🤩 🥳 😏 😒 😔 😢 😭 😤 😡 🤯 😱 🤔 🤗 🙄 😴 🤒 🥶 🥵 👍 👎 👏 🙌 🙏 💪 👋 ✌️ 🤞 👌 🤝 ❤️ 🧡 💛 💚 💙 💜 🖤 💔 🔥 ✨ 🎉 🎁 ⭐ 💯 ✅ ❌ 🌹 ☀️ 🌙 ☕ 🍕 🍔 🎵 📷 🚀 💡 🎮 ⚽ 🐱 🐶'.split(' ');
@@ -77,6 +86,8 @@ async function loadMore() {
   await loadSup();
   const bn = await sb.from('bans').select('user_id,reason');
   X.bans = Object.fromEntries((bn.data || []).map(r => [r.user_id, r.reason || '']));
+  const fo = await Promise.all([sb.from('admin_folders').select('*').order('created_at'), sb.from('admin_folder_users').select('*')]);
+  X.folders = fo[0].data || []; X.folderOf = Object.fromEntries((fo[1].data || []).map(r => [r.user_id, r.folder_id]));
   try { X.gSeen = JSON.parse(localStorage.getItem('connect_grp_' + session.user.id) || '{}'); } catch (e) { X.gSeen = {}; }
   await loadGroups();
   try { X.ai = JSON.parse(localStorage.getItem('connect_ai_' + session.user.id) || '[]'); } catch (e) { X.ai = []; }
@@ -137,9 +148,9 @@ renderCList = function () {
   const el = $('#cl'); if (!el) return;
   const s = (($('#cs') || {}).value || '').trim().toLowerCase();
   const row = (u, l, n) => `<button class="ci ${u.id === chatWith ? 'on' : ''}" data-act="opench" data-id="${u.id}">${u.id === 'ai' ? '<span class="av" style="--h:265">✦</span>' : u.icon ? '<span class="av" style="--h:200">' + u.icon + '</span>' : av(u)}<div><b>${esc(u.name)}${u.id === 'ai' ? '<span class="bdg">ИИ</span>' : bdg(u)}</b><span>${l ? (l.sender_id === S.me ? 'Вы: ' : '') + esc(l.text) : esc(u.sub || '@' + u.handle)}</span></div>${l ? `<small>${hhmm(l.created_at)}</small>` : ''}${n ? `<i class="dot" style="position:static">${n}</i>` : ''}</button>`;
-  if (s) { el.innerHTML = S.users.filter(u => u.id !== S.me && (u.name + ' ' + u.handle).toLowerCase().includes(s)).map(u => row(u)).join('') || '<div class="empty">Никого не найдено</div>'; return; }
+  if (s) { setList(el, S.users.filter(u => u.id !== S.me && (u.name + ' ' + u.handle).toLowerCase().includes(s)).map(u => row(u)).join('') || '<div class="empty">Никого не найдено</div>'); return; }
   const dl = dialogs(), inD = new Set(dl.map(d => d.uid)), cts = [...X.contacts].filter(id => !inD.has(id)).map(U);
-  el.innerHTML = supRows(row) + row({ id: 'ai', name: 'Connect AI', sub: 'Спросите что угодно' }) + groupRows(row) + dl.map(({ uid, last: l }) => row(U(uid), l, unreadFrom(uid))).join('') + (cts.length ? '<div class="sec">Контакты</div>' + cts.map(u => row(u)).join('') : '');
+  setList(el, supRows(row) + row({ id: 'ai', name: 'Connect AI', sub: 'Спросите что угодно' }) + groupRows(row) + dl.map(({ uid, last: l }) => row(U(uid), l, unreadFrom(uid))).join('') + (cts.length ? '<div class="sec">Контакты</div>' + cts.map(u => row(u)).join('') : ''));
 };
 
 renderConv = function () {
@@ -162,16 +173,19 @@ renderConv = function () {
   const sub = bot ? 'Помощник' : grp ? gMem(g.id).length + ' участников' : sup ? (staff ? '@' + esc(u.handle) + ' · ' + esc(tk.subject) + (closed ? ' · решено' : '') : closed ? 'Обращение закрыто' : 'Ответим как можно скорее') : tel ? '📞 ' + esc(tel) : '@' + esc(u.handle);
   const tag = bot ? '<span class="bdg">ИИ</span>' : grp || (sup && !staff) ? '' : bdg(u);
   const menu = bot ? '<button class="mbtn" data-act="aiclear" aria-label="Очистить">⟲</button>' : sup && !staff ? '' : '<button class="mbtn" data-act="cmenu" aria-label="Меню">⋮</button>';
-  h.innerHTML = X.sel.size
+  const hh = X.sel.size
     ? `<div class="selbar"><button data-act="selx" aria-label="Отмена">×</button><b>${X.sel.size}</b><button data-act="selcopy">Копировать</button><button data-act="selfwd">Переслать</button><button class="danger" data-act="seldel">Удалить</button></div>`
     : `<button class="back" data-act="backch" aria-label="Назад">‹</button><span class="chu" ${bot || grp || (sup && !staff) ? '' : `data-user="${u.id}"`}>${avt}<div><b>${esc(u.name)}${tag}</b><small>${sub}</small></div></span>${menu}`;
+  if (h._h !== hh) { h._h = hh; h.innerHTML = hh; }
   const keep = X.keepScroll, top = body.scrollTop; X.keepScroll = false;
   const note = closed ? `<div class="empty">${staff ? 'Обращение закрыто. Откройте его снова в меню ⋮, чтобы ответить.' : 'Обращение закрыто. Если вопрос остался, создайте новое обращение.'}</div>` : blocked ? '<div class="empty">Вы заблокировали этого пользователя</div>' : '';
-  body.innerHTML = (rows.length ? rows.map(r => `<div class="mb ${r.me ? 'me' : ''} ${X.sel.has(r.id) ? 'sel' : ''}" data-mid="${r.id}">${r.who ? `<b class="who">${esc(r.who)}</b>` : ''}<p>${esc(r.text)}</p><small>${hhmm(r.t)}${r.me && !bot && !sup && !grp ? (r.read ? ' ✓✓' : ' ✓') : ''}</small></div>`).join('') : '<div class="empty">Сообщений пока нет. Напишите первым!</div>')
+  const bh = (rows.length ? rows.map(r => `<div class="mb ${r.me ? 'me' : ''} ${X.sel.has(r.id) ? 'sel' : ''}" data-mid="${r.id}">${r.who ? `<b class="who">${esc(r.who)}</b>` : ''}<p>${esc(r.text)}</p><small>${hhmm(r.t)}${r.me && !bot && !sup && !grp ? (r.read ? ' ✓✓' : ' ✓') : ''}</small></div>`).join('') : '<div class="empty">Сообщений пока нет. Напишите первым!</div>')
     + (X.typing && bot ? '<div class="mb"><p>печатает…</p></div>' : '') + note;
+  const changed = body._h !== bh;
+  if (changed) { body._h = bh; body.innerHTML = bh; }
   cb.hidden = blocked || closed;
   if (!$('.emob', cb)) cb.insertAdjacentHTML('afterbegin', '<button class="emob" data-act="emoji" aria-label="Эмодзи">☺</button>');
-  body.scrollTop = keep ? top : body.scrollHeight;
+  if (changed) body.scrollTop = keep ? top : body.scrollHeight;
   if (sup) { supSeen(); renderCList(); }
   if (grp) { gSeen(); renderCList(); }
 };
@@ -316,14 +330,14 @@ document.addEventListener('click', e => {
 }, true);
 
 /* ---------- переходы между вкладками без двойной анимации ---------- */
-const dsig = () => [S.posts.map(p => p.id + ':' + p.likes.length + ':' + p.cm.length).join(), S.users.map(u => [u.id, u.name, u.handle, u.avatar, u.role, u.banned, u.verified].join()).join(), S.follows.length, S.msgs.length, X.statuses.length].join('|');
+const dsig = () => [S.posts.map(p => p.id + ':' + p.likes.length + ':' + p.cm.length).join(), S.users.map(u => [u.id, u.name, u.handle, u.avatar, u.role, u.banned, u.verified].join()).join(), S.follows.length, S.msgs.length, X.statuses.length, X.gmsg.length, X.groups.length, X.sup.length, X.tix.length].join('|');
 go = function (name, uid) {
   view = { name, uid: name === 'profile' ? (uid || S.me) : null };
   render(); window.scrollTo({ top: 0, behavior: 'smooth' });
   const before = dsig();
   loadAll().then(() => {
     if (!S.me) return;
-    if (view.name === 'dm') return refreshChat();
+    if (view.name === 'dm') return dsig() !== before ? refreshChat() : undefined;
     const t = $('#txt');
     if (dsig() !== before && !(t && t.value)) render();
   });
@@ -350,10 +364,10 @@ render = function () {
     if (u.banned && X.bans[u.id]) el.insertAdjacentHTML('beforeend', `<br><small>Причина бана: ${esc(X.bans[u.id])}</small>`);
     if (ua) ua.remove();
     el.removeAttribute('data-user');
-    row.dataset.act = 'aumenu'; row.dataset.id = u.id; row.classList.add('au');
+    row.dataset.act = 'aumenu'; row.dataset.id = u.id; row.classList.add('au'); row.draggable = true;
   });
   const h4 = $('.ulist h4');
-  if (h4) { h4.insertAdjacentHTML('afterend', `<input id="aq" class="aq" placeholder="Поиск пользователей" autocomplete="off" value="${esc(X.aq)}"><div class="empty" id="aqe" hidden>Никого не найдено</div>`); aqApply(); }
+  if (h4) { h4.insertAdjacentHTML('afterend', `<input id="aq" class="aq" placeholder="Поиск пользователей" autocomplete="off" value="${esc(X.aq)}"><div class="empty" id="aqe" hidden>Никого не найдено</div><div class="frow"><button class="mini" data-act="fnew">＋ Новая папка</button></div>`); buildFolders(); aqApply(); }
 };
 
 /* ---------- сообщения: выбор, копирование, пересылка, удаление ---------- */
@@ -424,6 +438,36 @@ document.addEventListener('click', async e => {
   else if (a === 'selfwd') forward(selIds());
   else if (a === 'seldel') delMsgs(selIds());
   else if (a === 'fwclose') $('#fwM').remove();
+  else if (a === 'fnew') {
+    const name = (prompt('Название папки') || '').trim().slice(0, 40);
+    if (!name) return;
+    const r = await sb.from('admin_folders').insert({ name }).select().single();
+    if (!ok(r)) return;
+    X.folders.push(r.data); buildFolders(); aqApply();
+  }
+  else if (a === 'frename') {
+    const f = X.folders.find(x => x.id === t.dataset.f), name = (prompt('Новое название папки', f.name) || '').trim().slice(0, 40);
+    if (!name || name === f.name) return;
+    if (!ok(await sb.from('admin_folders').update({ name }).eq('id', f.id))) return;
+    f.name = name; buildFolders(); aqApply();
+  }
+  else if (a === 'fdel') {
+    const f = X.folders.find(x => x.id === t.dataset.f);
+    if (!confirm('Удалить папку «' + f.name + '»? Люди вернутся в «Без папки».')) return;
+    if (!ok(await sb.from('admin_folders').delete().eq('id', f.id))) return;
+    X.folders = X.folders.filter(x => x.id !== f.id);
+    Object.keys(X.folderOf).forEach(k => { if (X.folderOf[k] === f.id) delete X.folderOf[k]; });
+    buildFolders(); aqApply();
+  }
+  else if (a === 'ftoggle') {
+    const k = t.dataset.f || 'none';
+    X.fclosed[k] = !X.fclosed[k];
+    try { localStorage.setItem('connect_fold', JSON.stringify(X.fclosed)); } catch (e) {}
+    t.closest('.fsec').classList.toggle('closed', !!X.fclosed[k]);
+  }
+  else if (a === 'afolder') folderPick(id);
+  else if (a === 'fpclose') $('#fpM').remove();
+  else if (a === 'afto') { $('#fpM').remove(); moveUser(id, t.dataset.f); }
   else if (a === 'aumenu') auModal(id);
   else if (a === 'au-profile') go('profile', id);
   else if (a === 'tnew') tNew();
@@ -564,7 +608,7 @@ chrome = function () {
 };
 const foot = $('.foot');
 if (foot) foot.insertAdjacentHTML('beforeend', `<span class="mu">Поддержка: ${mail}</span>`);
-document.addEventListener('click', e => { if (['pwM', 'bnM', 'gM', 'gmM', 'tM', 'auM'].includes(e.target.id)) e.target.remove(); });
+document.addEventListener('click', e => { if (['pwM', 'bnM', 'gM', 'gmM', 'tM', 'auM', 'fpM'].includes(e.target.id)) e.target.remove(); });
 
 /* ---------- причина блокировки ---------- */
 function banModal(id) {
@@ -663,7 +707,7 @@ function gSeen() {
 function groupRows(row) {
   const key = g => { const l = last(gMsgs(g.id)); return l ? l.created_at : g.created_at; };
   const gs = [...X.groups].sort((a, b) => key(b).localeCompare(key(a)));
-  return '<div class="sec">Группы</div><button class="ci" data-act="gnew"><span class="av" style="--h:150">＋</span><div><b>Новая группа</b><span>Создать общий чат</span></div></button>'
+  return '<div class="sec">Чаты</div><button class="ci" data-act="gnew"><span class="av" style="--h:150">＋</span><div><b>Новая группа</b><span>Создать общий чат</span></div></button>'
     + gs.map(g => { const l = last(gMsgs(g.id)); return row({ id: 'g:' + g.id, name: g.name, sub: gMem(g.id).length + ' участников', icon: '👥' }, l && { ...l, text: (l.sender_id === S.me ? '' : U(l.sender_id).name.split(' ')[0] + ': ') + l.text }, gUnread(g.id)); }).join('');
 }
 function groupMenu() {
@@ -717,6 +761,8 @@ const aqApply = () => {
   const q2 = (X.aq || '').trim().toLowerCase();
   let n = 0;
   document.querySelectorAll('.urow').forEach(r => { const show = !q2 || r.textContent.toLowerCase().includes(q2); r.hidden = !show; if (show) n++; });
+  const fl = $('#fl');
+  if (fl) { fl.classList.toggle('searching', !!q2); fl.querySelectorAll('.fsec').forEach(sec => { sec.hidden = !!q2 && !sec.querySelector('.urow:not([hidden])'); }); }
   const e = $('#aqe'); if (e) e.hidden = n > 0;
 };
 document.addEventListener('input', e => { if (e.target.id === 'aq') { X.aq = e.target.value; aqApply(); } });
@@ -729,6 +775,7 @@ function auModal(id) {
   const b = (act, text, extra = '', cls = '') => `<button ${cls ? `class="${cls}" ` : ''}data-act="${act}" data-id="${id}" ${extra}>${text}</button>`;
   const items = [b('au-profile', 'Открыть профиль')];
   if (id !== S.me) items.push(b('dm', 'Написать'));
+  items.push(b('afolder', 'Переместить в папку'));
   if (canManage(u)) {
     items.push(b('averify', u.verified ? 'Снять галочку' : 'Выдать галочку', `data-flag="${!u.verified}"`));
     items.push(b('apwd', 'Сбросить пароль'));
@@ -741,5 +788,68 @@ function auModal(id) {
   document.body.appendChild(d);
 }
 
+/* ---------- без лишних перерисовок ---------- */
+const setList = (el, h) => { if (el._h !== h) { const st = el.scrollTop; el._h = h; el.innerHTML = h; el.scrollTop = st; } };
+const _onMsg = onMsg;
+onMsg = function (pl) {
+  if (pl.eventType === 'UPDATE' && pl.new && pl.new.id) {
+    const i = S.msgs.findIndex(x => x.id === pl.new.id);
+    if (i >= 0) {
+      const was = S.msgs[i].read_at;
+      S.msgs[i] = pl.new;
+      if (pl.new.read_at && !was && pl.new.sender_id === S.me) {
+        const el = document.querySelector('.mb[data-mid="' + pl.new.id + '"] small');
+        if (el) el.textContent = el.textContent.replace(/\s✓+$/, '') + ' ✓✓';
+      }
+      return;
+    }
+  }
+  _onMsg(pl);
+};
+try { X.fclosed = JSON.parse(localStorage.getItem('connect_fold') || '{}'); } catch (e) { X.fclosed = {}; }
+
+/* ---------- админ-панель: папки ---------- */
+function buildFolders() {
+  const card = $('.ulist'); if (!card) return;
+  const rows = [...card.querySelectorAll('.urow')], old = $('#fl'); if (old) old.remove();
+  const wrap = document.createElement('div'); wrap.id = 'fl';
+  [{ id: '', name: 'Без папки' }, ...X.folders].forEach(f => {
+    const mine = rows.filter(r => (X.folderOf[r.dataset.id] || '') === f.id), sec = document.createElement('div');
+    sec.className = 'fsec' + (X.fclosed[f.id || 'none'] ? ' closed' : ''); sec.dataset.f = f.id;
+    sec.innerHTML = `<div class="fh" data-act="ftoggle" data-f="${f.id}"><span class="car">▾</span><b>${esc(f.name)}</b><small>${mine.length}</small>${f.id ? `<span class="fx"><button data-act="frename" data-f="${f.id}" aria-label="Переименовать">✎</button><button data-act="fdel" data-f="${f.id}" aria-label="Удалить папку">🗑</button></span>` : ''}</div><div class="fb"></div>`;
+    const fb = $('.fb', sec);
+    if (mine.length) mine.forEach(r => fb.appendChild(r)); else fb.innerHTML = '<div class="fe">Пусто. Перетащите сюда людей</div>';
+    wrap.appendChild(sec);
+  });
+  card.appendChild(wrap);
+}
+async function moveUser(uid, fid) {
+  if (!uid || (X.folderOf[uid] || '') === fid) return;
+  const r = fid ? await sb.from('admin_folder_users').upsert({ user_id: uid, folder_id: fid }) : await sb.from('admin_folder_users').delete().eq('user_id', uid);
+  if (!ok(r)) return;
+  if (fid) X.folderOf[uid] = fid; else delete X.folderOf[uid];
+  buildFolders(); aqApply(); toast('Перемещено');
+}
+function folderPick(uid) {
+  const u = S.users.find(x => x.id === uid), cur = X.folderOf[uid] || '', old = $('#fpM'); if (old) old.remove();
+  const d = document.createElement('div'); d.className = 'modal'; d.id = 'fpM';
+  d.innerHTML = `<div class="sheet card"><button class="x" data-act="fpclose" aria-label="Закрыть">×</button><h2>В папку</h2><p class="mu" style="margin-bottom:8px">${esc(u.name)}</p><div class="msheet" style="margin:0;padding:0;border:0;box-shadow:none;background:none;animation:none;max-width:none">${[{ id: '', name: 'Без папки' }, ...X.folders].map(f => `<button data-act="afto" data-id="${uid}" data-f="${f.id}">${f.id === cur ? '✓ ' : ''}${esc(f.name)}</button>`).join('')}</div>${X.folders.length ? '' : '<p class="mu" style="margin-top:10px">Сначала создайте папку кнопкой «＋ Новая папка».</p>'}</div>`;
+  document.body.appendChild(d);
+}
+const secOf = e => e.target.closest && e.target.closest('.fsec');
+document.addEventListener('dragstart', e => {
+  const r = e.target.closest && e.target.closest('.urow'); if (!r) return;
+  e.dataTransfer.setData('text/plain', r.dataset.id); e.dataTransfer.effectAllowed = 'move'; r.classList.add('drag');
+});
+document.addEventListener('dragend', () => document.querySelectorAll('.drag,.over').forEach(x => x.classList.remove('drag', 'over')));
+document.addEventListener('dragover', e => { const s2 = secOf(e); if (s2) { e.preventDefault(); s2.classList.add('over'); } });
+document.addEventListener('dragleave', e => { const s2 = secOf(e); if (s2 && !s2.contains(e.relatedTarget)) s2.classList.remove('over'); });
+document.addEventListener('drop', e => {
+  const s2 = secOf(e); if (!s2) return;
+  e.preventDefault(); s2.classList.remove('over');
+  moveUser(e.dataTransfer.getData('text/plain'), s2.dataset.f);
+});
+
 if (S.me) loadMore().then(() => render());
+if (S.me) startLive();
 })();
