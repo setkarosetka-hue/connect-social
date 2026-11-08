@@ -39,10 +39,12 @@ st.textContent = `
 .msheet button{display:block;width:100%;text-align:left;padding:13px 14px;border-radius:12px;font-weight:600}.msheet button:hover{background:var(--bg)}.msheet .danger{color:var(--hot)}
 .fwl{max-height:50vh;overflow-y:auto;margin-top:12px}
 .slink{color:var(--ac);font-weight:600;text-decoration:none}.slink:hover{text-decoration:underline}
-.mb .who{display:block;font-size:12px;font-weight:700;color:var(--ac);margin-bottom:2px}`;
+.mb .who{display:block;font-size:12px;font-weight:700;color:var(--ac);margin-bottom:2px}
+.au{cursor:pointer;border-radius:14px;padding:8px;margin:0 -8px 4px;transition:background .2s}.au:hover{background:var(--bg)}
+.aq{width:100%;padding:11px 16px;border-radius:999px;border:1px solid var(--bd);background:var(--bg);outline:0;margin-bottom:14px}.aq:focus{border-color:var(--ac)}`;
 document.head.appendChild(st);
 
-const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false, sup: [], supSeen: {}, bans: {}, groups: [], gm: [], gmsg: [], gSeen: {}, gpick: new Set() };
+const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false, sup: [], supSeen: {}, bans: {}, aq: '', tix: [], groups: [], gm: [], gmsg: [], gSeen: {}, gpick: new Set() };
 const SUPPORT = 'helpingdev.connect@gmail.com';
 const mail = `<a class="slink" href="mailto:${SUPPORT}">${SUPPORT}</a>`;
 const EMO = '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 😉 😍 🥰 😘 😋 😜 🤪 😎 🤩 🥳 😏 😒 😔 😢 😭 😤 😡 🤯 😱 🤔 🤗 🙄 😴 🤒 🥶 🥵 👍 👎 👏 🙌 🙏 💪 👋 ✌️ 🤞 👌 🤝 ❤️ 🧡 💛 💚 💙 💜 🖤 💔 🔥 ✨ 🎉 🎁 ⭐ 💯 ✅ ❌ 🌹 ☀️ 🌙 ☕ 🍕 🍔 🎵 📷 🚀 💡 🎮 ⚽ 🐱 🐶'.split(' ');
@@ -144,28 +146,30 @@ renderConv = function () {
   const box = $('#chat'); if (!box) return;
   const h = $('#ch'), body = $('#cvm'), cb = $('#cb');
   if (!chatWith) { X.sel.clear(); box.classList.remove('open'); h.innerHTML = ''; cb.hidden = true; body.innerHTML = '<div class="empty">Выберите чат или найдите человека, чтобы начать общение</div>'; return; }
-  const bot = chatWith === 'ai', sup = isSup(chatWith), grp = isGrp(chatWith), staff = sup && isAdmin(), tid = sup ? supThread() : null, g = grp ? gOf(gid()) : null;
-  if (grp && !g) { chatWith = null; return renderConv(); }
+  const bot = chatWith === 'ai', sup = isSup(chatWith), grp = isGrp(chatWith), staff = sup && isAdmin(), tk = sup ? tkOf() : null, g = grp ? gOf(gid()) : null;
+  if ((grp && !g) || (sup && !tk)) { chatWith = null; return renderConv(); }
   box.classList.add('open');
-  const u = bot ? { name: 'Connect AI' } : grp ? { name: g.name } : sup ? (staff ? U(tid) : { name: 'Техподдержка' }) : U(chatWith);
+  const closed = !!tk && tk.status === 'closed';
+  const u = bot ? { name: 'Connect AI' } : grp ? { name: g.name } : sup ? (staff ? U(tk.user_id) : { name: tk.subject }) : U(chatWith);
   const blocked = !bot && !sup && !grp && X.blocks.has(chatWith), tel = X.phones[chatWith];
   const rows = grp ? gMsgs(g.id).map(m => ({ id: m.id, me: m.sender_id === S.me, text: m.text, t: m.created_at, who: m.sender_id === S.me ? '' : U(m.sender_id).name }))
-    : sup ? X.sup.filter(m => m.user_id === tid).map(m => ({ id: m.id, me: staff ? m.sender_id !== m.user_id : m.sender_id === S.me, text: m.text, t: m.created_at }))
+    : sup ? tkMsgs(tk.id).map(m => ({ id: m.id, me: staff ? m.sender_id !== m.user_id : m.sender_id === S.me, text: m.text, t: m.created_at }))
     : bot ? X.ai.map((m, i) => ({ id: 'a' + i, me: m.role === 'user', text: m.text, t: m.t }))
     : thread(chatWith).filter(m => shown(m, chatWith)).map(m => ({ id: m.id, me: m.sender_id === S.me, text: m.text, t: m.created_at, read: m.read_at }));
   X.rows = Object.fromEntries(rows.map(r => [r.id, r]));
   [...X.sel].forEach(i => { if (!X.rows[i]) X.sel.delete(i); });
   const avt = bot ? '<span class="av sm" style="--h:265">✦</span>' : grp ? '<span class="av sm" style="--h:200">👥</span>' : sup && !staff ? '<span class="av sm" style="--h:200">🎧</span>' : av(u, 'sm');
-  const sub = bot ? 'Помощник' : grp ? gMem(g.id).length + ' участников' : sup ? (staff ? '@' + esc(u.handle) + ' · обращение' : 'Ответим как можно скорее') : tel ? '📞 ' + esc(tel) : '@' + esc(u.handle);
+  const sub = bot ? 'Помощник' : grp ? gMem(g.id).length + ' участников' : sup ? (staff ? '@' + esc(u.handle) + ' · ' + esc(tk.subject) + (closed ? ' · решено' : '') : closed ? 'Обращение закрыто' : 'Ответим как можно скорее') : tel ? '📞 ' + esc(tel) : '@' + esc(u.handle);
   const tag = bot ? '<span class="bdg">ИИ</span>' : grp || (sup && !staff) ? '' : bdg(u);
-  const menu = bot ? '<button class="mbtn" data-act="aiclear" aria-label="Очистить">⟲</button>' : sup ? '' : '<button class="mbtn" data-act="cmenu" aria-label="Меню">⋮</button>';
+  const menu = bot ? '<button class="mbtn" data-act="aiclear" aria-label="Очистить">⟲</button>' : sup && !staff ? '' : '<button class="mbtn" data-act="cmenu" aria-label="Меню">⋮</button>';
   h.innerHTML = X.sel.size
     ? `<div class="selbar"><button data-act="selx" aria-label="Отмена">×</button><b>${X.sel.size}</b><button data-act="selcopy">Копировать</button><button data-act="selfwd">Переслать</button><button class="danger" data-act="seldel">Удалить</button></div>`
     : `<button class="back" data-act="backch" aria-label="Назад">‹</button><span class="chu" ${bot || grp || (sup && !staff) ? '' : `data-user="${u.id}"`}>${avt}<div><b>${esc(u.name)}${tag}</b><small>${sub}</small></div></span>${menu}`;
   const keep = X.keepScroll, top = body.scrollTop; X.keepScroll = false;
-  body.innerHTML = (rows.length ? rows.map(r => `<div class="mb ${r.me ? 'me' : ''} ${X.sel.has(r.id) ? 'sel' : ''}" data-mid="${r.id}">${r.who ? `<b class="who">${esc(r.who)}</b>` : ''}<p>${esc(r.text)}</p><small>${hhmm(r.t)}${r.me && !bot && !sup && !grp ? (r.read ? ' ✓✓' : ' ✓') : ''}</small></div>`).join('') : `<div class="empty">${sup ? 'Опишите проблему или вопрос, мы ответим здесь.' : 'Сообщений пока нет. Напишите первым!'}</div>`)
-    + (X.typing && bot ? '<div class="mb"><p>печатает…</p></div>' : '') + (blocked ? '<div class="empty">Вы заблокировали этого пользователя</div>' : '');
-  cb.hidden = blocked;
+  const note = closed ? `<div class="empty">${staff ? 'Обращение закрыто. Откройте его снова в меню ⋮, чтобы ответить.' : 'Обращение закрыто. Если вопрос остался, создайте новое обращение.'}</div>` : blocked ? '<div class="empty">Вы заблокировали этого пользователя</div>' : '';
+  body.innerHTML = (rows.length ? rows.map(r => `<div class="mb ${r.me ? 'me' : ''} ${X.sel.has(r.id) ? 'sel' : ''}" data-mid="${r.id}">${r.who ? `<b class="who">${esc(r.who)}</b>` : ''}<p>${esc(r.text)}</p><small>${hhmm(r.t)}${r.me && !bot && !sup && !grp ? (r.read ? ' ✓✓' : ' ✓') : ''}</small></div>`).join('') : '<div class="empty">Сообщений пока нет. Напишите первым!</div>')
+    + (X.typing && bot ? '<div class="mb"><p>печатает…</p></div>' : '') + note;
+  cb.hidden = blocked || closed;
   if (!$('.emob', cb)) cb.insertAdjacentHTML('afterbegin', '<button class="emob" data-act="emoji" aria-label="Эмодзи">☺</button>');
   body.scrollTop = keep ? top : body.scrollHeight;
   if (sup) { supSeen(); renderCList(); }
@@ -206,6 +210,7 @@ function toggleMenu() {
   const id = chatWith, h = $('#ch');
   if (!id || id === 'ai' || !h) return;
   if (isGrp(id)) return h.insertAdjacentHTML('beforeend', groupMenu());
+  if (isSup(id)) return h.insertAdjacentHTML('beforeend', ticketMenu());
   h.insertAdjacentHTML('beforeend', `<div class="menu"><button data-act="cm-contact">${X.contacts.has(id) ? 'Удалить из контактов' : 'Добавить в контакты'}</button><button data-act="cm-share">${X.shared.has(id) ? 'Скрыть мой номер' : 'Показать мой номер'}</button><button data-act="cm-block">${X.blocks.has(id) ? 'Разблокировать' : 'Заблокировать'}</button><button class="danger" data-act="cm-clear">Удалить чат</button></div>`);
 }
 function emoji(input, before) {
@@ -341,9 +346,14 @@ render = function () {
   document.querySelectorAll('.urow').forEach(row => {
     const ua = $('.ua', row), el = row.querySelector('[data-user]');
     const u = el && S.users.find(x => x.id === el.dataset.user);
-    if (u && u.banned && X.bans[u.id]) el.insertAdjacentHTML('beforeend', `<br><small>Причина бана: ${esc(X.bans[u.id])}</small>`);
-    if (ua && u) ua.insertAdjacentHTML('afterbegin', `<button class="mini" data-act="averify" data-id="${u.id}" data-flag="${!u.verified}">${u.verified ? 'Снять галочку' : 'Выдать галочку'}</button><button class="mini" data-act="apwd" data-id="${u.id}">Сбросить пароль</button>`);
+    if (!u) return;
+    if (u.banned && X.bans[u.id]) el.insertAdjacentHTML('beforeend', `<br><small>Причина бана: ${esc(X.bans[u.id])}</small>`);
+    if (ua) ua.remove();
+    el.removeAttribute('data-user');
+    row.dataset.act = 'aumenu'; row.dataset.id = u.id; row.classList.add('au');
   });
+  const h4 = $('.ulist h4');
+  if (h4) { h4.insertAdjacentHTML('afterend', `<input id="aq" class="aq" placeholder="Поиск пользователей" autocomplete="off" value="${esc(X.aq)}"><div class="empty" id="aqe" hidden>Никого не найдено</div>`); aqApply(); }
 };
 
 /* ---------- сообщения: выбор, копирование, пересылка, удаление ---------- */
@@ -414,6 +424,31 @@ document.addEventListener('click', async e => {
   else if (a === 'selfwd') forward(selIds());
   else if (a === 'seldel') delMsgs(selIds());
   else if (a === 'fwclose') $('#fwM').remove();
+  else if (a === 'aumenu') auModal(id);
+  else if (a === 'au-profile') go('profile', id);
+  else if (a === 'tnew') tNew();
+  else if (a === 'tmclose') $('#tM').remove();
+  else if (a === 'tsend') {
+    const text = $('#tTxt').value.trim();
+    if (!text) return toast('Опишите проблему');
+    t.disabled = true;
+    const tk = await sb.from('support_tickets').insert({ user_id: S.me, subject: text.replace(/\s+/g, ' ').slice(0, 60) }).select().single();
+    if (!ok(tk)) { t.disabled = false; return; }
+    const m = await sb.from('support_messages').insert({ ticket_id: tk.data.id, user_id: S.me, sender_id: S.me, text }).select().single();
+    if (!ok(m)) { t.disabled = false; return; }
+    X.tix.unshift(tk.data); X.sup.push(m.data);
+    $('#tM').remove(); openChat('support:' + tk.data.id); toast('Обращение создано');
+  }
+  else if (a === 't-close' || a === 't-open') {
+    const tk = tkOf(), close = a === 't-close';
+    const note = () => sb.from('support_messages').insert({ ticket_id: tk.id, user_id: tk.user_id, sender_id: S.me, text: close ? '✅ Обращение закрыто: вопрос решён.' : '🔄 Обращение открыто снова.' }).select().single();
+    if (close) { const r = await note(); if (!ok(r)) return; X.sup.push(r.data); }
+    const u = await sb.from('support_tickets').update({ status: close ? 'closed' : 'open', closed_at: close ? new Date().toISOString() : null, closed_by: close ? S.me : null }).eq('id', tk.id);
+    if (!ok(u)) return;
+    tk.status = close ? 'closed' : 'open';
+    if (!close) { const r = await note(); if (ok(r)) X.sup.push(r.data); }
+    refreshChat(); toast(close ? 'Обращение закрыто' : 'Обращение открыто снова');
+  }
   else if (a === 'gnew') gNew();
   else if (a === 'gpick') { X.gpick.has(id) ? X.gpick.delete(id) : X.gpick.add(id); gFill(); }
   else if (a === 'gclose') $('#gM').remove();
@@ -523,51 +558,72 @@ chrome = function () {
   _chrome();
   const r = $('#rail');
   if (r) r.insertAdjacentHTML('beforeend', `<div class="card"><h4>Поддержка</h4><small class="mu">Вопросы и проблемы:<br>${mail}</small></div>`);
-  let n = isAdmin() ? [...new Set(X.sup.map(m => m.user_id))].reduce((c, t) => c + supUnread(t), 0) : supUnread(S.me);
+  let n = X.tix.reduce((c, t) => c + supUnread(t.id), 0);
   n += gUnreadAll();
   if (n) document.querySelectorAll('[data-go="dm"]').forEach(b => { if (!$('.dot', b)) b.insertAdjacentHTML('beforeend', `<i class="dot">${n}</i>`); });
 };
 const foot = $('.foot');
 if (foot) foot.insertAdjacentHTML('beforeend', `<span class="mu">Поддержка: ${mail}</span>`);
-document.addEventListener('click', e => { if (['pwM', 'bnM', 'gM', 'gmM'].includes(e.target.id)) e.target.remove(); });
+document.addEventListener('click', e => { if (['pwM', 'bnM', 'gM', 'gmM', 'tM', 'auM'].includes(e.target.id)) e.target.remove(); });
 
 /* ---------- причина блокировки ---------- */
 function banModal(id) {
+  const am = $('#auM'); if (am) am.remove();
   const u = S.users.find(x => x.id === id), old = $('#bnM'); if (old) old.remove();
   const d = document.createElement('div'); d.className = 'modal'; d.id = 'bnM'; d.dataset.id = id;
   d.innerHTML = `<div class="sheet card"><button class="x" data-act="bnclose" aria-label="Закрыть">×</button><h2>Заблокировать</h2><p class="mu" style="margin-bottom:12px">${esc(u.name)} увидит причину на экране блокировки.</p><div class="ef"><div class="row" style="flex-wrap:wrap">${['Спам', 'Оскорбления', 'Мошенничество', 'Нарушение правил'].map(t => `<button class="chip" type="button" data-act="breason" data-t="${t}">${t}</button>`).join('')}</div><textarea id="bnR" rows="3" maxlength="300" placeholder="Причина (необязательно)"></textarea><button class="btn lg" data-act="bnok">Заблокировать</button></div></div>`;
   document.body.appendChild(d); $('#bnR').focus();
 }
 
-/* ---------- чат техподдержки ---------- */
-const isSup = id => typeof id === 'string' && (id === 'support' || id.startsWith('support:'));
-const supThread = () => chatWith === 'support' ? S.me : chatWith.slice(8);
+/* ---------- техподдержка: отдельные обращения ---------- */
+const isSup = id => typeof id === 'string' && id.startsWith('support:');
+const tkId = () => chatWith.slice(8);
+const tkOf = id => X.tix.find(t => t.id === (id || tkId()));
+const tkMsgs = id => X.sup.filter(m => m.ticket_id === id);
 const supIn = m => isAdmin() ? (m.sender_id === m.user_id && m.user_id !== S.me) : m.sender_id !== S.me;
-const supUnread = tid => X.sup.filter(m => m.user_id === tid && supIn(m) && new Date(m.created_at).getTime() > (X.supSeen[tid] || 0)).length;
+const supUnread = id => tkMsgs(id).filter(m => supIn(m) && new Date(m.created_at).getTime() > (X.supSeen[id] || 0)).length;
 async function loadSup() {
-  const r = await sb.from('support_messages').select('*').order('created_at').limit(1000);
-  if (!r.error) X.sup = r.data || [];
+  const [m, t] = await Promise.all([
+    sb.from('support_messages').select('*').order('created_at').limit(1500),
+    sb.from('support_tickets').select('*').order('created_at', { ascending: false })
+  ]);
+  if (m.error || t.error) return;
+  X.sup = m.data || []; X.tix = t.data || [];
 }
 function supSeen() {
   if (!isSup(chatWith)) return;
-  const tid = supThread(), l = last(X.sup.filter(m => m.user_id === tid));
-  X.supSeen[tid] = l ? new Date(l.created_at).getTime() : Date.now();
+  const l = last(tkMsgs(tkId()));
+  X.supSeen[tkId()] = l ? new Date(l.created_at).getTime() : Date.now();
   try { localStorage.setItem('connect_sup_' + S.me, JSON.stringify(X.supSeen)); } catch (e) {}
 }
 function supRows(row) {
+  const at = t => { const l = last(tkMsgs(t.id)); return l ? l.created_at : t.created_at; };
+  const all = [...X.tix].sort((a, b) => at(b).localeCompare(at(a)));
+  const mk = t => {
+    const closed = t.status === 'closed', l = last(tkMsgs(t.id));
+    const u = isAdmin() ? { ...U(t.user_id), id: 'support:' + t.id, name: U(t.user_id).name + ' · ' + t.subject, sub: closed ? 'Решено' : 'Открыто' }
+      : { id: 'support:' + t.id, name: t.subject + (closed ? ' · решено' : ''), sub: 'Ожидает ответа', icon: '🎧' };
+    return row(u, l, supUnread(t.id));
+  };
   if (isAdmin()) {
-    const by = {};
-    X.sup.forEach(m => { by[m.user_id] = m; });
-    const ids = Object.keys(by).sort((a, b) => by[b].created_at.localeCompare(by[a].created_at));
-    return ids.length ? '<div class="sec">Обращения в поддержку</div>' + ids.map(id => row({ ...U(id), id: 'support:' + id }, by[id], supUnread(id))).join('') : '';
+    const open = all.filter(t => t.status === 'open'), done = all.filter(t => t.status === 'closed');
+    return (open.length ? '<div class="sec">Обращения в поддержку</div>' + open.map(mk).join('') : '') + (done.length ? '<div class="sec">Решённые обращения</div>' + done.map(mk).join('') : '');
   }
-  return row({ id: 'support', name: 'Техподдержка', sub: 'Напишите нам, ответим здесь', icon: '🎧' }, last(X.sup), supUnread(S.me));
+  return '<div class="sec">Техподдержка</div><button class="ci" data-act="tnew"><span class="av" style="--h:200">🎧</span><div><b>Новое обращение</b><span>Опишите проблему, ответим здесь</span></div></button>' + all.map(mk).join('');
 }
+function tNew() {
+  const old = $('#tM'); if (old) old.remove();
+  const d = document.createElement('div'); d.className = 'modal'; d.id = 'tM';
+  d.innerHTML = '<div class="sheet card"><button class="x" data-act="tmclose" aria-label="Закрыть">×</button><h2>Новое обращение</h2><div class="ef"><textarea id="tTxt" rows="5" maxlength="1000" placeholder="Опишите проблему или вопрос"></textarea><button class="btn lg" data-act="tsend">Отправить</button></div></div>';
+  document.body.appendChild(d); $('#tTxt').focus();
+}
+const ticketMenu = () => `<div class="menu">${tkOf().status === 'open' ? '<button data-act="t-close">Отметить решённым</button>' : '<button data-act="t-open">Открыть снова</button>'}</div>`;
 async function supSend() {
-  const el = $('#cin'), v = el.value.trim();
-  if (!v) return;
+  const tk = tkOf(), el = $('#cin'), v = el.value.trim();
+  if (!tk || !v) return;
+  if (tk.status !== 'open') return toast('Обращение закрыто');
   el.value = ''; el.style.height = 'auto';
-  const r = await sb.from('support_messages').insert({ user_id: supThread(), sender_id: S.me, text: v }).select().single();
+  const r = await sb.from('support_messages').insert({ ticket_id: tk.id, user_id: tk.user_id, sender_id: S.me, text: v }).select().single();
   if (r.error) { el.value = v; return toast('Не отправлено: ' + r.error.message); }
   X.sup.push(r.data); refreshChat();
 }
@@ -576,7 +632,7 @@ setInterval(async () => {
   const len = X.sup.length, n = X.sup.filter(supIn).length;
   await loadSup();
   if (X.sup.length === len) return;
-  if (X.sup.filter(supIn).length > n) toast(isAdmin() ? 'Новое обращение в поддержку' : 'Новый ответ от техподдержки');
+  if (X.sup.filter(supIn).length > n) toast(isAdmin() ? 'Новое сообщение в поддержке' : 'Новый ответ от техподдержки');
   chrome();
   if (view.name === 'dm') { renderCList(); if (isSup(chatWith)) renderConv(); }
 }, 12000);
@@ -655,6 +711,35 @@ setInterval(async () => {
   chrome();
   if (view.name === 'dm') { renderCList(); if (isGrp(chatWith)) renderConv(); }
 }, 12000);
+
+/* ---------- админ-панель: поиск и меню пользователя ---------- */
+const aqApply = () => {
+  const q2 = (X.aq || '').trim().toLowerCase();
+  let n = 0;
+  document.querySelectorAll('.urow').forEach(r => { const show = !q2 || r.textContent.toLowerCase().includes(q2); r.hidden = !show; if (show) n++; });
+  const e = $('#aqe'); if (e) e.hidden = n > 0;
+};
+document.addEventListener('input', e => { if (e.target.id === 'aq') { X.aq = e.target.value; aqApply(); } });
+document.addEventListener('click', e => { if (e.target.closest('#auM [data-act]')) $('#auM').remove(); });
+function auModal(id) {
+  const u = S.users.find(x => x.id === id); if (!u) return;
+  const old = $('#auM'); if (old) old.remove();
+  const role = u.role === 'creator' ? 'Создатель' : u.role === 'admin' ? 'Администратор' : 'Пользователь';
+  const st = [role, u.verified ? 'с галочкой' : '', u.banned ? 'заблокирован' + (X.bans[id] ? ': ' + X.bans[id] : '') : ''].filter(Boolean).join(' · ');
+  const b = (act, text, extra = '', cls = '') => `<button ${cls ? `class="${cls}" ` : ''}data-act="${act}" data-id="${id}" ${extra}>${text}</button>`;
+  const items = [b('au-profile', 'Открыть профиль')];
+  if (id !== S.me) items.push(b('dm', 'Написать'));
+  if (canManage(u)) {
+    items.push(b('averify', u.verified ? 'Снять галочку' : 'Выдать галочку', `data-flag="${!u.verified}"`));
+    items.push(b('apwd', 'Сбросить пароль'));
+    if (isCreator()) items.push(b('arole', u.role === 'admin' ? 'Снять админа' : 'Сделать админом', `data-role="${u.role === 'admin' ? 'user' : 'admin'}"`));
+    items.push(b('aban', u.banned ? 'Разблокировать' : 'Заблокировать', `data-flag="${!u.banned}"`));
+    items.push(b('adel', 'Удалить пользователя', '', 'danger'));
+  }
+  const d = document.createElement('div'); d.className = 'modal'; d.id = 'auM';
+  d.innerHTML = `<div class="sheet card"><button class="x" data-act="aumclose" aria-label="Закрыть">×</button><div class="row" style="margin-bottom:6px;padding-right:28px">${av(u)}<div style="min-width:0"><b>${esc(u.name)}</b>${bdg(u)}<br><small class="mu">@${esc(u.handle)}</small></div></div><p class="mu" style="font-size:13px">${esc(st)}</p><div class="msheet" style="margin:12px 0 0;padding:0;border:0;box-shadow:none;background:none;animation:none;max-width:none">${items.join('')}</div></div>`;
+  document.body.appendChild(d);
+}
 
 if (S.me) loadMore().then(() => render());
 })();
