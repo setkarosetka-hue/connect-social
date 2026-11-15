@@ -40,6 +40,7 @@ st.textContent = `
 .fwl{max-height:50vh;overflow-y:auto;margin-top:12px}
 .slink{color:var(--ac);font-weight:600;text-decoration:none}.slink:hover{text-decoration:underline}
 .mb .who{display:block;font-size:12px;font-weight:700;color:var(--ac);margin-bottom:2px}
+.bdg.svc{background:linear-gradient(135deg,#0ea5e9,#2563eb)}
 .micb{font-size:22px;padding:4px 8px;border-radius:50%}.micb:hover{background:var(--bg)}
 .vbar{display:flex;align-items:center;gap:10px;padding:10px;border-top:1px solid var(--bd)}
 .rec{flex:1;display:flex;align-items:center;gap:8px;font-weight:700}.rec i{width:10px;height:10px;border-radius:50%;background:var(--hot);animation:blink 1s infinite}
@@ -64,6 +65,7 @@ document.head.appendChild(st);
 
 const X = { contacts: new Set(), blocks: new Set(), clears: {}, phones: {}, shared: new Set(), statuses: [], ai: [], typing: false, sel: new Set(), rows: {}, keepScroll: false, sup: [], supSeen: {}, bans: {}, folders: [], folderOf: {}, fclosed: {}, aq: '', tix: [], groups: [], gm: [], gmsg: [], gSeen: {}, gpick: new Set() };
 const SUPPORT = 'helpingdev.connect@gmail.com';
+const SVC = '<span class="bdg svc">СЛУЖЕБНЫЙ</span>';
 const mail = `<a class="slink" href="mailto:${SUPPORT}">${SUPPORT}</a>`;
 const EMO = '😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 😉 😍 🥰 😘 😋 😜 🤪 😎 🤩 🥳 😏 😒 😔 😢 😭 😤 😡 🤯 😱 🤔 🤗 🙄 😴 🤒 🥶 🥵 👍 👎 👏 🙌 🙏 💪 👋 ✌️ 🤞 👌 🤝 ❤️ 🧡 💛 💚 💙 💜 🖤 💔 🔥 ✨ 🎉 🎁 ⭐ 💯 ✅ ❌ 🌹 ☀️ 🌙 ☕ 🍕 🍔 🎵 📷 🚀 💡 🎮 ⚽ 🐱 🐶'.split(' ');
 const last = a => a[a.length - 1];
@@ -156,7 +158,7 @@ dialogs = () => _dialogs().filter(({ uid, last: l }) => shown(l, uid));
 renderCList = function () {
   const el = $('#cl'); if (!el) return;
   const s = (($('#cs') || {}).value || '').trim().toLowerCase();
-  const row = (u, l, n) => `<button class="ci ${u.id === chatWith ? 'on' : ''}" data-act="opench" data-id="${u.id}">${u.id === 'ai' ? '<span class="av" style="--h:265">✦</span>' : u.icon ? '<span class="av" style="--h:200">' + u.icon + '</span>' : av(u)}<div><b>${esc(u.name)}${u.id === 'ai' ? '<span class="bdg">ИИ</span>' : bdg(u)}</b><span>${l ? (l.sender_id === S.me ? 'Вы: ' : '') + esc(pv(l.text)) : esc(u.sub || '@' + u.handle)}</span></div>${l ? `<small>${hhmm(l.created_at)}</small>` : ''}${n ? `<i class="dot" style="position:static">${n}</i>` : ''}</button>`;
+  const row = (u, l, n) => `<button class="ci ${u.id === chatWith ? 'on' : ''}" data-act="opench" data-id="${u.id}">${u.id === 'ai' ? '<span class="av" style="--h:265">✦</span>' : u.icon ? '<span class="av" style="--h:200">' + u.icon + '</span>' : av(u)}<div><b>${esc(u.name)}${u.id === 'ai' ? '<span class="bdg">ИИ</span>' : u.svc ? SVC : bdg(u)}</b><span>${l ? (l.sender_id === S.me ? 'Вы: ' : '') + esc(pv(l.text)) : esc(u.sub || '@' + u.handle)}</span></div>${l ? `<small>${hhmm(l.created_at)}</small>` : ''}${n ? `<i class="dot" style="position:static">${n}</i>` : ''}</button>`;
   if (s) { setList(el, S.users.filter(u => u.id !== S.me && (u.name + ' ' + u.handle).toLowerCase().includes(s)).map(u => row(u)).join('') || '<div class="empty">Никого не найдено</div>'); return; }
   const dl = dialogs(), inD = new Set(dl.map(d => d.uid)), cts = [...X.contacts].filter(id => !inD.has(id)).map(U);
   setList(el, supRows(row) + row({ id: 'ai', name: 'Connect AI', sub: 'Спросите что угодно' }) + groupRows(row) + dl.map(({ uid, last: l }) => row(U(uid), l, unreadFrom(uid))).join('') + (cts.length ? '<div class="sec">Контакты</div>' + cts.map(u => row(u)).join('') : ''));
@@ -171,7 +173,7 @@ renderConv = function () {
   if ((grp && !g) || (sup && !tk)) { chatWith = null; return renderConv(); }
   box.classList.add('open');
   const closed = !!tk && tk.status === 'closed';
-  const u = bot ? { name: 'Connect AI' } : grp ? { name: g.name } : sup ? (staff ? U(tk.user_id) : { name: tk.subject }) : U(chatWith);
+  const u = bot ? { name: 'Connect AI' } : grp ? { name: g.name } : sup ? (staff ? U(tk.user_id) : { name: '111' }) : U(chatWith);
   const blocked = !bot && !sup && !grp && X.blocks.has(chatWith), tel = X.phones[chatWith];
   const rows = grp ? gMsgs(g.id).map(m => ({ id: m.id, me: m.sender_id === S.me, text: m.text, t: m.created_at, who: m.sender_id === S.me ? '' : U(m.sender_id).name }))
     : sup ? tkMsgs(tk.id).map(m => ({ id: m.id, me: staff ? m.sender_id !== m.user_id : m.sender_id === S.me, text: m.text, t: m.created_at }))
@@ -180,8 +182,8 @@ renderConv = function () {
   X.rows = Object.fromEntries(rows.map(r => [r.id, r]));
   [...X.sel].forEach(i => { if (!X.rows[i]) X.sel.delete(i); });
   const avt = bot ? '<span class="av sm" style="--h:265">✦</span>' : grp ? '<span class="av sm" style="--h:200">👥</span>' : sup && !staff ? '<span class="av sm" style="--h:200">🎧</span>' : av(u, 'sm');
-  const sub = bot ? 'Помощник' : grp ? gMem(g.id).length + ' участников' : sup ? (staff ? '@' + esc(u.handle) + ' · ' + esc(tk.subject) + (closed ? ' · решено' : '') : closed ? 'Обращение закрыто' : 'Ответим как можно скорее') : tel ? '📞 ' + esc(tel) : '@' + esc(u.handle);
-  const tag = bot ? '<span class="bdg">ИИ</span>' : grp || (sup && !staff) ? '' : bdg(u);
+  const sub = bot ? 'Помощник' : grp ? gMem(g.id).length + ' участников' : sup ? (staff ? '@' + esc(u.handle) + ' · ' + esc(tk.subject) + (closed ? ' · решено' : '') : esc(tk.subject) + (closed ? ' · закрыто' : '')) : tel ? '📞 ' + esc(tel) : '@' + esc(u.handle);
+  const tag = bot ? '<span class="bdg">ИИ</span>' : grp ? '' : sup && !staff ? SVC : bdg(u);
   const menu = bot ? '<button class="mbtn" data-act="aiclear" aria-label="Очистить">⟲</button>' : sup && !staff ? '' : '<button class="mbtn" data-act="cmenu" aria-label="Меню">⋮</button>';
   const hh = X.sel.size
     ? `<div class="selbar"><button data-act="selx" aria-label="Отмена">×</button><b>${X.sel.size}</b><button data-act="selcopy">Копировать</button><button data-act="selfwd">Переслать</button><button class="danger" data-act="seldel">Удалить</button></div>`
@@ -494,18 +496,18 @@ document.addEventListener('click', async e => {
     const text = $('#tTxt').value.trim();
     if (!text) return toast('Опишите проблему');
     t.disabled = true;
-    const tk = await sb.from('support_tickets').insert({ user_id: S.me, subject: text.replace(/\s+/g, ' ').slice(0, 60) }).select().single();
+    const tk = await sb.from('cn_tickets').insert({ user_id: S.me, subject: text.replace(/\s+/g, ' ').slice(0, 60) }).select().single();
     if (!ok(tk)) { t.disabled = false; return; }
-    const m = await sb.from('support_messages').insert({ ticket_id: tk.data.id, user_id: S.me, sender_id: S.me, text }).select().single();
+    const m = await sb.from('cn_ticket_msgs').insert({ ticket_id: tk.data.id, user_id: S.me, sender_id: S.me, text }).select().single();
     if (!ok(m)) { t.disabled = false; return; }
     X.tix.unshift(tk.data); X.sup.push(m.data);
     $('#tM').remove(); openChat('support:' + tk.data.id); toast('Обращение создано');
   }
   else if (a === 't-close' || a === 't-open') {
     const tk = tkOf(), close = a === 't-close';
-    const note = () => sb.from('support_messages').insert({ ticket_id: tk.id, user_id: tk.user_id, sender_id: S.me, text: close ? '✅ Обращение закрыто: вопрос решён.' : '🔄 Обращение открыто снова.' }).select().single();
+    const note = () => sb.from('cn_ticket_msgs').insert({ ticket_id: tk.id, user_id: tk.user_id, sender_id: S.me, text: close ? '✅ Обращение закрыто: вопрос решён.' : '🔄 Обращение открыто снова.' }).select().single();
     if (close) { const r = await note(); if (!ok(r)) return; X.sup.push(r.data); }
-    const u = await sb.from('support_tickets').update({ status: close ? 'closed' : 'open', closed_at: close ? new Date().toISOString() : null, closed_by: close ? S.me : null }).eq('id', tk.id);
+    const u = await sb.from('cn_tickets').update({ status: close ? 'closed' : 'open', closed_at: close ? new Date().toISOString() : null, closed_by: close ? S.me : null }).eq('id', tk.id);
     if (!ok(u)) return;
     tk.status = close ? 'closed' : 'open';
     if (!close) { const r = await note(); if (ok(r)) X.sup.push(r.data); }
@@ -619,7 +621,7 @@ const _chrome = chrome;
 chrome = function () {
   _chrome();
   const r = $('#rail');
-  if (r) r.insertAdjacentHTML('beforeend', `<div class="card"><h4>Поддержка</h4><small class="mu">Вопросы и проблемы:<br>${mail}</small></div>`);
+  if (r) r.insertAdjacentHTML('beforeend', `<div class="card"><h4>Поддержка</h4><small class="mu">Служебный номер: <b>111</b>${SVC}<br>Вопросы и проблемы:<br>${mail}</small></div>`);
   let n = X.tix.reduce((c, t) => c + supUnread(t.id), 0);
   n += gUnreadAll();
   if (n) document.querySelectorAll('[data-go="dm"]').forEach(b => { if (!$('.dot', b)) b.insertAdjacentHTML('beforeend', `<i class="dot">${n}</i>`); });
@@ -646,8 +648,8 @@ const supIn = m => isAdmin() ? (m.sender_id === m.user_id && m.user_id !== S.me)
 const supUnread = id => tkMsgs(id).filter(m => supIn(m) && new Date(m.created_at).getTime() > (X.supSeen[id] || 0)).length;
 async function loadSup() {
   const [m, t] = await Promise.all([
-    sb.from('support_messages').select('*').order('created_at').limit(1500),
-    sb.from('support_tickets').select('*').order('created_at', { ascending: false })
+    sb.from('cn_ticket_msgs').select('*').order('created_at').limit(1500),
+    sb.from('cn_tickets').select('*').order('created_at', { ascending: false })
   ]);
   if (m.error || t.error) return;
   X.sup = m.data || []; X.tix = t.data || [];
@@ -664,14 +666,14 @@ function supRows(row) {
   const mk = t => {
     const closed = t.status === 'closed', l = last(tkMsgs(t.id));
     const u = isAdmin() ? { ...U(t.user_id), id: 'support:' + t.id, name: U(t.user_id).name + ' · ' + t.subject, sub: closed ? 'Решено' : 'Открыто' }
-      : { id: 'support:' + t.id, name: t.subject + (closed ? ' · решено' : ''), sub: 'Ожидает ответа', icon: '🎧' };
+      : { id: 'support:' + t.id, name: '111 · ' + t.subject + (closed ? ' · решено' : ''), sub: 'Ожидает ответа', icon: '🎧', svc: true };
     return row(u, l, supUnread(t.id));
   };
   if (isAdmin()) {
     const open = all.filter(t => t.status === 'open'), done = all.filter(t => t.status === 'closed');
     return (open.length ? '<div class="sec">Обращения в поддержку</div>' + open.map(mk).join('') : '') + (done.length ? '<div class="sec">Решённые обращения</div>' + done.map(mk).join('') : '');
   }
-  return '<div class="sec">Техподдержка</div><button class="ci" data-act="tnew"><span class="av" style="--h:200">🎧</span><div><b>Новое обращение</b><span>Опишите проблему, ответим здесь</span></div></button>' + all.map(mk).join('');
+  return '<div class="sec">Техподдержка</div><button class="ci" data-act="tnew"><span class="av" style="--h:200">🎧</span><div><b>111${SVC}</b><span>Служебный номер поддержки</span></div></button>' + all.map(mk).join('');
 }
 function tNew() {
   const old = $('#tM'); if (old) old.remove();
@@ -685,7 +687,7 @@ async function supSend() {
   if (!tk || !v) return;
   if (tk.status !== 'open') return toast('Обращение закрыто');
   el.value = ''; el.style.height = 'auto';
-  const r = await sb.from('support_messages').insert({ ticket_id: tk.id, user_id: tk.user_id, sender_id: S.me, text: v }).select().single();
+  const r = await sb.from('cn_ticket_msgs').insert({ ticket_id: tk.id, user_id: tk.user_id, sender_id: S.me, text: v }).select().single();
   if (r.error) { el.value = v; return toast('Не отправлено: ' + r.error.message); }
   X.sup.push(r.data); refreshChat();
 }
@@ -879,6 +881,19 @@ async function vDone() {
   after();
 }
 
+/* ---------- вход по короткому служебному номеру (только вход, не регистрация) ---------- */
+const _submit = submit;
+submit = function () {
+  const el = $('#fMail'), v = el.value.trim();
+  if (mode === 'login' && v && !v.includes('@')) {
+    const d = v.replace(/[\s()+-]/g, '');
+    if (/^\d{3,9}$/.test(d)) el.value = d + '@phone.connect.app';
+  }
+  const r = _submit();
+  el.value = v;
+  return r;
+};
+
 /* ---------- без лишних перерисовок ---------- */
 const setList = (el, h) => { if (el._h !== h) { const st = el.scrollTop; el._h = h; el.innerHTML = h; el.scrollTop = st; } };
 const _onMsg = onMsg;
@@ -942,5 +957,6 @@ document.addEventListener('drop', e => {
 });
 
 if (S.me) loadMore().then(() => render());
+const i18n = document.createElement('script'); i18n.src = 'i18n.js'; document.body.appendChild(i18n);
 if (S.me) startLive();
 })();
