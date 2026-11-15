@@ -330,7 +330,7 @@ const toLogin = v => {
   if (v.includes('@')) return v.toLowerCase();
   let d = v.replace(/\D/g, '');
   if (d.length === 11 && d[0] === '8') d = '7' + d.slice(1);
-  return d.length >= 10 && d.length <= 15 ? d + '@phone.connect.app' : null;
+ return d.length >= (mode === 'login' ? 3 : 10) && d.length <= 15 ? d + '@phone.connect.app' : null;
 };
 async function submit() {
   const name = $('#fName').value.trim(), ident = toLogin($('#fMail').value), pass = $('#fPass').value, err = $('#err'), btn = $('#authBtn');
